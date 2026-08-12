@@ -21,10 +21,19 @@ const STORE_PATH = path.join(DATA_DIR, "store.json");
 let writeQueue: Promise<void> = Promise.resolve();
 
 function migrateStore(raw: DataStore): DataStore {
+  const defaultUserId = raw.users[0]?.id ?? "u-anna";
   return {
     ...raw,
+    users: raw.users.map((u) => ({
+      ...u,
+      password_hash:
+        (u as { password_hash?: string }).password_hash ??
+        // demo1234
+        "$2b$12$f/ecpHwyZl1aebWp1XJ9.OtewaqeBvEPUEA4ljjdCs9FoE9rYwNMS",
+    })),
     campaigns: raw.campaigns.map((c) => ({
       ...c,
+      user_id: c.user_id ?? defaultUserId,
       currency: (c.currency ?? "RUB") as CurrencyCode,
       primary_kpi: (c.primary_kpi ?? "impressions") as KpiType,
     })),
@@ -93,6 +102,51 @@ export const localDb = {
     return ensureStore();
   },
 
+  async findAuthUserByEmail(email: string) {
+    const store = await ensureStore();
+    const row = store.users.find((u) => u.email.toLowerCase() === email);
+    if (!row?.password_hash) return null;
+    return {
+      id: row.id,
+      email: row.email,
+      name: row.name,
+      role: row.role,
+      created_at: row.created_at,
+      password_hash: row.password_hash,
+    };
+  },
+
+  async createAuthUser(input: {
+    name: string;
+    email: string;
+    passwordHash: string;
+    role?: string;
+  }) {
+    const store = await ensureStore();
+    if (store.users.some((u) => u.email.toLowerCase() === input.email)) {
+      throw new Error("Пользователь с таким email уже зарегистрирован");
+    }
+    const now = new Date().toISOString();
+    const row = {
+      id: crypto.randomUUID(),
+      name: input.name,
+      email: input.email,
+      role: input.role ?? "employee",
+      password_hash: input.passwordHash,
+      created_at: now,
+      updated_at: now,
+    };
+    store.users.push(row);
+    await saveStore(store);
+    return {
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      role: row.role,
+      created_at: row.created_at,
+    };
+  },
+
   async listClients() {
     const store = await ensureStore();
     return [...store.clients].sort((a, b) => a.name.localeCompare(b.name, "ru"));
@@ -137,22 +191,26 @@ export const localDb = {
     return platform;
   },
 
-  async listCampaigns() {
+  async listCampaigns(userId: string) {
     const store = await ensureStore();
     return store.campaigns
+      .filter((c) => c.user_id === userId)
       .map((c) => hydrateCampaign(store, c))
       .map((c) => buildCampaignSummary(c))
       .sort((a, b) => a.campaign.name.localeCompare(b.campaign.name, "ru"));
   },
 
-  async getCampaign(id: string) {
+  async getCampaign(id: string, userId: string) {
     const store = await ensureStore();
-    const campaign = store.campaigns.find((c) => c.id === id);
+    const campaign = store.campaigns.find(
+      (c) => c.id === id && c.user_id === userId
+    );
     if (!campaign) return null;
     return buildCampaignSummary(hydrateCampaign(store, campaign));
   },
 
   async createCampaign(input: {
+    user_id: string;
     client_id: string;
     platform_id: string;
     name: string;
@@ -166,6 +224,9 @@ export const localDb = {
     if (!input.name.trim()) throw new Error("Название кампании обязательно");
     if (input.end_date < input.start_date) {
       throw new Error("Дата окончания не может быть раньше даты начала");
+    }
+    if (!store.users.some((u) => u.id === input.user_id)) {
+      throw new Error("Пользователь не найден");
     }
     if (!store.clients.some((c) => c.id === input.client_id)) {
       throw new Error("Клиент не найден");
@@ -187,6 +248,7 @@ export const localDb = {
     const now = new Date().toISOString();
     const campaign: Campaign = {
       id: crypto.randomUUID(),
+      user_id: input.user_id,
       client_id: input.client_id,
       platform_id: input.platform_id,
       name: input.name.trim(),
@@ -216,6 +278,7 @@ export const localDb = {
 
   async updateCampaign(
     id: string,
+    userId: string,
     input: Partial<{
       name: string;
       client_id: string;
@@ -228,7 +291,9 @@ export const localDb = {
     }>
   ) {
     const store = await ensureStore();
-    const campaign = store.campaigns.find((c) => c.id === id);
+    const campaign = store.campaigns.find(
+      (c) => c.id === id && c.user_id === userId
+    );
     if (!campaign) throw new Error("Кампания не найдена");
 
     if (input.name !== undefined) campaign.name = input.name.trim();
@@ -264,16 +329,24 @@ export const localDb = {
     return buildCampaignSummary(hydrateCampaign(store, campaign));
   },
 
-  async deleteCampaign(id: string) {
+  async deleteCampaign(id: string, userId: string) {
     const store = await ensureStore();
+    const campaign = store.campaigns.find(
+      (c) => c.id === id && c.user_id === userId
+    );
+    if (!campaign) throw new Error("Кампания не найдена");
     store.campaigns = store.campaigns.filter((c) => c.id !== id);
     store.campaign_kpis = store.campaign_kpis.filter((k) => k.campaign_id !== id);
     store.daily_metrics = store.daily_metrics.filter((m) => m.campaign_id !== id);
     await saveStore(store);
   },
 
-  async listDaily(campaignId: string) {
+  async listDaily(campaignId: string, userId: string) {
     const store = await ensureStore();
+    const campaign = store.campaigns.find(
+      (c) => c.id === campaignId && c.user_id === userId
+    );
+    if (!campaign) throw new Error("Кампания не найдена");
     return store.daily_metrics
       .filter((m) => m.campaign_id === campaignId)
       .sort((a, b) => a.date.localeCompare(b.date));
@@ -281,6 +354,7 @@ export const localDb = {
 
   async upsertDaily(
     campaignId: string,
+    userId: string,
     input: {
       date: string;
       impressions?: number | null;
@@ -293,7 +367,9 @@ export const localDb = {
     options?: { allowUpdate?: boolean; id?: string }
   ) {
     const store = await ensureStore();
-    const campaign = store.campaigns.find((c) => c.id === campaignId);
+    const campaign = store.campaigns.find(
+      (c) => c.id === campaignId && c.user_id === userId
+    );
     if (!campaign) throw new Error("Кампания не найдена");
 
     const date = input.date.slice(0, 10);
@@ -414,6 +490,7 @@ export const localDb = {
   async updateDaily(
     campaignId: string,
     metricId: string,
+    userId: string,
     input: {
       date?: string;
       impressions?: number | null;
@@ -425,12 +502,17 @@ export const localDb = {
     }
   ) {
     const store = await ensureStore();
+    const campaign = store.campaigns.find(
+      (c) => c.id === campaignId && c.user_id === userId
+    );
+    if (!campaign) throw new Error("Кампания не найдена");
     const existing = store.daily_metrics.find(
       (m) => m.id === metricId && m.campaign_id === campaignId
     );
     if (!existing) throw new Error("Запись не найдена");
     return this.upsertDaily(
       campaignId,
+      userId,
       {
         date: input.date ?? existing.date,
         impressions:
@@ -447,25 +529,16 @@ export const localDb = {
     );
   },
 
-  async deleteDaily(campaignId: string, metricId: string) {
+  async deleteDaily(campaignId: string, metricId: string, userId: string) {
     const store = await ensureStore();
+    const campaign = store.campaigns.find(
+      (c) => c.id === campaignId && c.user_id === userId
+    );
+    if (!campaign) throw new Error("Кампания не найдена");
     store.daily_metrics = store.daily_metrics.filter(
       (m) => !(m.id === metricId && m.campaign_id === campaignId)
     );
     await syncCampaignStatus(store, campaignId);
     await saveStore(store);
-  },
-
-  async getUser() {
-    const store = await ensureStore();
-    return (
-      store.users[0] ?? {
-        id: "demo",
-        email: process.env.DEMO_USER_EMAIL ?? "anna@agency.com",
-        name: process.env.DEMO_USER_NAME ?? "Анна Иванова",
-        role: process.env.DEMO_USER_ROLE ?? "employee",
-        created_at: new Date().toISOString(),
-      }
-    );
   },
 };

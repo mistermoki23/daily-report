@@ -1,8 +1,10 @@
 import { Sidebar } from "@/components/layout/Sidebar";
-import { db } from "@/lib/db";
+import { getSessionUser } from "@/lib/auth/current-user";
+import { redirect } from "next/navigation";
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
-  const user = await db.getUser();
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
   return (
     <div className="flex min-h-screen min-w-[1200px] bg-slate-100/70">
       <Sidebar user={user} />

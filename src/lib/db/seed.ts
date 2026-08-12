@@ -359,6 +359,7 @@ export function createSeedStore(today = new Date()): DataStore {
     const end = d.previousMonth ? prevEnd : addDays(monthEnd, d.endOffset);
     return {
       id: d.id,
+      user_id: "u-anna",
       client_id: clientId(d.client),
       platform_id: platforms[d.platformIndex].id,
       name: d.name,
@@ -429,7 +430,11 @@ export function createSeedStore(today = new Date()): DataStore {
         email: "anna@agency.com",
         name: "Анна Иванова",
         role: "employee",
+        // password: demo1234
+        password_hash:
+          "$2b$12$f/ecpHwyZl1aebWp1XJ9.OtewaqeBvEPUEA4ljjdCs9FoE9rYwNMS",
         created_at: now,
+        updated_at: now,
       },
     ],
     clients,

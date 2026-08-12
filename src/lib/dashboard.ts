@@ -15,15 +15,18 @@ import type {
 } from "@/lib/types";
 import { db } from "@/lib/db";
 
-export async function getDashboardData(filters?: {
-  clientId?: string;
-  platformId?: string;
-  status?: string;
-  month?: string;
-  search?: string;
-  currency?: string;
-}) {
-  let summaries = await db.listCampaigns();
+export async function getDashboardData(
+  userId: string,
+  filters?: {
+    clientId?: string;
+    platformId?: string;
+    status?: string;
+    month?: string;
+    search?: string;
+    currency?: string;
+  }
+) {
+  let summaries = await db.listCampaigns(userId);
 
   if (filters?.clientId) {
     summaries = summaries.filter((s) => s.campaign.client_id === filters.clientId);
@@ -149,9 +152,9 @@ export function buildPerformanceSummary(
   };
 }
 
-export async function getClientsWithStats() {
+export async function getClientsWithStats(userId: string) {
   const clients = await db.listClients();
-  const campaigns = await db.listCampaigns();
+  const campaigns = await db.listCampaigns(userId);
   return clients.map((client) => {
     const related = campaigns.filter((c) => c.campaign.client_id === client.id);
     const active = related.filter((c) => c.status !== "completed").length;

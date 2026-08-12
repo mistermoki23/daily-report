@@ -87,6 +87,12 @@ export interface User {
   created_at: string;
 }
 
+/** Stored user row (local JSON) — password never sent to clients */
+export interface UserRecord extends User {
+  password_hash: string;
+  updated_at?: string;
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -101,6 +107,7 @@ export interface Platform {
 
 export interface Campaign {
   id: string;
+  user_id: string;
   client_id: string;
   platform_id: string;
   name: string;
@@ -262,7 +269,7 @@ export interface DailyUpdateItem {
 }
 
 export interface DataStore {
-  users: User[];
+  users: UserRecord[];
   clients: Client[];
   platforms: Platform[];
   campaigns: Campaign[];

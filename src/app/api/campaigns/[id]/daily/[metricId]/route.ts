@@ -1,10 +1,12 @@
 import { db } from "@/lib/db";
 import { jsonError, jsonOk, readJson } from "@/lib/api";
+import { AuthError, requireSessionUser } from "@/lib/auth/current-user";
 
 type Params = { params: Promise<{ id: string; metricId: string }> };
 
 export async function PUT(request: Request, { params }: Params) {
   try {
+    const user = await requireSessionUser();
     const { id, metricId } = await params;
     const body = await readJson<{
       date?: string;
@@ -15,22 +17,24 @@ export async function PUT(request: Request, { params }: Params) {
       conversions?: number | null;
       video_views?: number | null;
     }>(request);
-    const result = await db.updateDaily(id, metricId, body);
+    const result = await db.updateDaily(id, metricId, user.id, body);
     return jsonOk(result);
   } catch (e) {
+    if (e instanceof AuthError) return jsonError(e.message, e.status);
     return jsonError(e instanceof Error ? e.message : "Ошибка обновления");
   }
 }
 
-/** Alias for PUT — PATCH /api/campaigns/[id]/daily/[dailyId] */
 export const PATCH = PUT;
 
 export async function DELETE(_request: Request, { params }: Params) {
   try {
+    const user = await requireSessionUser();
     const { id, metricId } = await params;
-    await db.deleteDaily(id, metricId);
+    await db.deleteDaily(id, metricId, user.id);
     return jsonOk({ ok: true });
   } catch (e) {
+    if (e instanceof AuthError) return jsonError(e.message, e.status);
     return jsonError(e instanceof Error ? e.message : "Ошибка удаления");
   }
 }

@@ -65,9 +65,10 @@ export function Sidebar({ user }: { user: User }) {
           <div className="text-[10px] capitalize text-slate-500">{user.role}</div>
           <button
             type="button"
-            onClick={() => {
-              document.cookie = "cm_auth=; path=/; max-age=0";
+            onClick={async () => {
+              await fetch("/api/auth/logout", { method: "POST" });
               router.push("/login");
+              router.refresh();
             }}
             className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-800"
           >

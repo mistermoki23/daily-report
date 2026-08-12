@@ -1,7 +1,13 @@
-import { db } from "@/lib/db";
-import { jsonOk } from "@/lib/api";
+import { jsonError, jsonOk } from "@/lib/api";
+import { AuthError, getSessionUser } from "@/lib/auth/current-user";
 
 export async function GET() {
-  const user = await db.getUser();
-  return jsonOk(user);
+  try {
+    const user = await getSessionUser();
+    if (!user) return jsonError("Требуется авторизация", 401);
+    return jsonOk(user);
+  } catch (e) {
+    if (e instanceof AuthError) return jsonError(e.message, e.status);
+    return jsonError("Ошибка", 500);
+  }
 }

@@ -9,7 +9,6 @@ import {
   mapClient,
   mapDaily,
   mapPlatform,
-  mapUser,
 } from "@/lib/db/mappers";
 import type {
   CampaignSummary,
@@ -56,12 +55,12 @@ export const prismaDb = {
     await prisma.client.deleteMany();
     await prisma.user.deleteMany();
 
-    const passwordHash = await hash("demo1234", 10);
-    await prisma.user.create({
+    const passwordHash = await hash("demo1234", 12);
+    const user = await prisma.user.create({
       data: {
-        name: process.env.DEMO_USER_NAME ?? "Анна Иванова",
-        email: process.env.DEMO_USER_EMAIL ?? "anna@agency.com",
-        role: process.env.DEMO_USER_ROLE ?? "employee",
+        name: "Анна Иванова",
+        email: "anna@agency.com",
+        role: "employee",
         passwordHash,
       },
     });
@@ -71,6 +70,7 @@ export const prismaDb = {
     await prisma.campaign.create({
       data: {
         name: "Brufen",
+        userId: user.id,
         clientId: client.id,
         platformId: platform.id,
         currency: "USD",
@@ -149,19 +149,26 @@ export const prismaDb = {
     }
   },
 
-  async listCampaigns() {
+  async listCampaigns(userId: string) {
     const rows = await prisma.campaign.findMany({
+      where: { userId },
       include: campaignInclude,
       orderBy: { name: "asc" },
     });
     return rows.map((row) => buildCampaignSummary(mapCampaignWithRelations(row)));
   },
 
-  async getCampaign(id: string) {
-    return loadCampaignSummary(id);
+  async getCampaign(id: string, userId: string) {
+    const row = await prisma.campaign.findFirst({
+      where: { id, userId },
+      include: campaignInclude,
+    });
+    if (!row) return null;
+    return buildCampaignSummary(mapCampaignWithRelations(row));
   },
 
   async createCampaign(input: {
+    user_id: string;
     client_id: string;
     platform_id: string;
     name: string;
@@ -175,6 +182,8 @@ export const prismaDb = {
     if (input.end_date < input.start_date) {
       throw new Error("Дата окончания не может быть раньше даты начала");
     }
+    const owner = await prisma.user.findUnique({ where: { id: input.user_id } });
+    if (!owner) throw new Error("Пользователь не найден");
     const client = await prisma.client.findUnique({ where: { id: input.client_id } });
     if (!client) throw new Error("Клиент не найден");
     const platform = await prisma.platform.findUnique({
@@ -197,6 +206,7 @@ export const prismaDb = {
     const row = await prisma.campaign.create({
       data: {
         name: input.name.trim(),
+        userId: input.user_id,
         clientId: input.client_id,
         platformId: input.platform_id,
         currency: input.currency || "RUB",
@@ -217,6 +227,7 @@ export const prismaDb = {
 
   async updateCampaign(
     id: string,
+    userId: string,
     input: Partial<{
       name: string;
       client_id: string;
@@ -228,7 +239,7 @@ export const prismaDb = {
       kpis: { kpi_type: KpiType; planned_value: number }[];
     }>
   ) {
-    const existing = await prisma.campaign.findUnique({ where: { id } });
+    const existing = await prisma.campaign.findFirst({ where: { id, userId } });
     if (!existing) throw new Error("Кампания не найдена");
 
     const start = input.start_date
@@ -275,11 +286,16 @@ export const prismaDb = {
     return summary;
   },
 
-  async deleteCampaign(id: string) {
-    await prisma.campaign.delete({ where: { id } });
+  async deleteCampaign(id: string, userId: string) {
+    const result = await prisma.campaign.deleteMany({ where: { id, userId } });
+    if (result.count === 0) throw new Error("Кампания не найдена");
   },
 
-  async listDaily(campaignId: string) {
+  async listDaily(campaignId: string, userId: string) {
+    const owned = await prisma.campaign.findFirst({
+      where: { id: campaignId, userId },
+    });
+    if (!owned) throw new Error("Кампания не найдена");
     const rows = await prisma.dailyData.findMany({
       where: { campaignId },
       orderBy: { date: "asc" },
@@ -289,6 +305,7 @@ export const prismaDb = {
 
   async upsertDaily(
     campaignId: string,
+    userId: string,
     input: {
       date: string;
       impressions?: number | null;
@@ -300,7 +317,9 @@ export const prismaDb = {
     },
     options?: { allowUpdate?: boolean; id?: string }
   ) {
-    const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
+    const campaign = await prisma.campaign.findFirst({
+      where: { id: campaignId, userId },
+    });
     if (!campaign) throw new Error("Кампания не найдена");
 
     const date = input.date.slice(0, 10);
@@ -407,6 +426,7 @@ export const prismaDb = {
   async updateDaily(
     campaignId: string,
     metricId: string,
+    userId: string,
     input: {
       date?: string;
       impressions?: number | null;
@@ -417,12 +437,17 @@ export const prismaDb = {
       video_views?: number | null;
     }
   ) {
+    const owned = await prisma.campaign.findFirst({
+      where: { id: campaignId, userId },
+    });
+    if (!owned) throw new Error("Кампания не найдена");
     const existing = await prisma.dailyData.findFirst({
       where: { id: metricId, campaignId },
     });
     if (!existing) throw new Error("Запись не найдена");
     return this.upsertDaily(
       campaignId,
+      userId,
       {
         date: input.date ?? existing.date.toISOString().slice(0, 10),
         impressions:
@@ -450,23 +475,15 @@ export const prismaDb = {
     );
   },
 
-  async deleteDaily(campaignId: string, metricId: string) {
+  async deleteDaily(campaignId: string, metricId: string, userId: string) {
+    const owned = await prisma.campaign.findFirst({
+      where: { id: campaignId, userId },
+    });
+    if (!owned) throw new Error("Кампания не найдена");
     await prisma.dailyData.deleteMany({
       where: { id: metricId, campaignId },
     });
     await syncCampaignStatus(campaignId);
-  },
-
-  async getUser() {
-    const row = await prisma.user.findFirst({ orderBy: { createdAt: "asc" } });
-    if (row) return mapUser(row);
-    return {
-      id: "demo",
-      email: process.env.DEMO_USER_EMAIL ?? "anna@agency.com",
-      name: process.env.DEMO_USER_NAME ?? "Анна Иванова",
-      role: process.env.DEMO_USER_ROLE ?? "employee",
-      created_at: new Date().toISOString(),
-    };
   },
 };
 

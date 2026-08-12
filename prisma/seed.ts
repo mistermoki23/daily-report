@@ -13,13 +13,13 @@ async function main() {
   await prisma.client.deleteMany();
   await prisma.user.deleteMany();
 
-  const passwordHash = await hash("demo1234", 10);
+  const passwordHash = await hash("demo1234", 12);
 
-  await prisma.user.create({
+  const user = await prisma.user.create({
     data: {
-      name: process.env.DEMO_USER_NAME ?? "Анна Иванова",
-      email: process.env.DEMO_USER_EMAIL ?? "anna@agency.com",
-      role: process.env.DEMO_USER_ROLE ?? "employee",
+      name: "Анна Иванова",
+      email: "anna@agency.com",
+      role: "employee",
       passwordHash,
     },
   });
@@ -35,6 +35,7 @@ async function main() {
   const campaign = await prisma.campaign.create({
     data: {
       name: "Brufen",
+      userId: user.id,
       clientId: client.id,
       platformId: platform.id,
       currency: "USD",
@@ -67,10 +68,10 @@ async function main() {
   });
 
   console.log("Seed complete:");
-  console.log(`  Client:   ${client.name} (${client.id})`);
-  console.log(`  Platform: ${platform.name} (${platform.id})`);
+  console.log(`  User:     ${user.email} / demo1234`);
+  console.log(`  Client:   ${client.name}`);
+  console.log(`  Platform: ${platform.name}`);
   console.log(`  Campaign: ${campaign.name} (${campaign.id})`);
-  console.log("  Daily:    2026-09-01");
 }
 
 main()

@@ -64,6 +64,7 @@ export function mapPlatform(row: PrismaPlatform): Platform {
 export function mapCampaign(row: PrismaCampaign): Campaign {
   return {
     id: row.id,
+    user_id: row.userId,
     client_id: row.clientId,
     platform_id: row.platformId,
     name: row.name,

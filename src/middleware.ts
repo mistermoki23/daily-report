@@ -1,34 +1,54 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import {
+  SESSION_COOKIE,
+  verifySessionToken,
+} from "@/lib/auth/session-token";
 
-const PUBLIC = ["/login"];
+const PUBLIC_PAGES = ["/login", "/register"];
+const PUBLIC_API = ["/api/auth/login", "/api/auth/register"];
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
   if (
-    pathname.startsWith("/api") ||
     pathname.startsWith("/_next") ||
-    pathname.includes(".")
+    pathname.includes(".") // static files
   ) {
     return NextResponse.next();
   }
 
-  const auth = request.cookies.get("cm_auth")?.value;
-  const isPublic = PUBLIC.some((p) => pathname === p);
+  const isPublicPage = PUBLIC_PAGES.some((p) => pathname === p);
+  const isPublicApi = PUBLIC_API.some((p) => pathname === p);
+  const isApi = pathname.startsWith("/api");
 
-  if (!auth && !isPublic) {
+  const token = request.cookies.get(SESSION_COOKIE)?.value;
+  const session = token ? await verifySessionToken(token) : null;
+
+  if (isApi) {
+    if (isPublicApi) return NextResponse.next();
+    if (!session) {
+      return NextResponse.json(
+        { error: "Требуется авторизация" },
+        { status: 401 }
+      );
+    }
+    return NextResponse.next();
+  }
+
+  if (!session && !isPublicPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  if (auth && pathname === "/login") {
+  if (session && (pathname === "/login" || pathname === "/register")) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
   }
 
-  if (auth && pathname === "/") {
+  if (session && pathname === "/") {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
