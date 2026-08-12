@@ -4,8 +4,10 @@ import { localDb } from "@/lib/db/local";
 import { prismaDb } from "@/lib/db/prisma";
 
 /**
- * Use PostgreSQL (Prisma) when DATABASE_URL is set and USE_LOCAL_DB is not "true".
- * Otherwise keep the local JSON store (demo mode).
+ * Data access layer.
+ *
+ * - PostgreSQL (Prisma → Supabase): DATABASE_URL set and USE_LOCAL_DB !== "true"
+ * - Local JSON demo: USE_LOCAL_DB=true or missing DATABASE_URL
  */
 export function useLocalDb(): boolean {
   if (process.env.USE_LOCAL_DB === "true") return true;

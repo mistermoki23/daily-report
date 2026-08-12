@@ -6,8 +6,11 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Pooled URL for app runtime (Supabase pooler / Transaction mode)
+  url       = env("DATABASE_URL")
+  // Direct URL for migrations (Supabase Session/Direct — no pgbouncer)
+  directUrl = env("DIRECT_URL")
 }
 
 enum CampaignStatus {

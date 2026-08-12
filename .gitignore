@@ -18,6 +18,7 @@ node_modules/
 # env — never commit secrets
 .env
 .env.local
+.env*.local
 .env.*.local
 .env.development.local
 .env.test.local
