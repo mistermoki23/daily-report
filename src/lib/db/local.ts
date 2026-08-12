@@ -20,6 +20,14 @@ const STORE_PATH = path.join(DATA_DIR, "store.json");
 
 let writeQueue: Promise<void> = Promise.resolve();
 
+function assertLocalFsAllowed() {
+  if (process.env.VERCEL || process.env.VERCEL_ENV) {
+    throw new Error(
+      "Local JSON store (/data) is not available on Vercel. Use PostgreSQL via Prisma."
+    );
+  }
+}
+
 function migrateStore(raw: DataStore): DataStore {
   const defaultUserId = raw.users[0]?.id ?? "u-anna";
   return {
@@ -45,6 +53,7 @@ function migrateStore(raw: DataStore): DataStore {
 }
 
 async function ensureStore(): Promise<DataStore> {
+  assertLocalFsAllowed();
   await fs.mkdir(DATA_DIR, { recursive: true });
   try {
     const raw = await fs.readFile(STORE_PATH, "utf-8");
@@ -57,6 +66,7 @@ async function ensureStore(): Promise<DataStore> {
 }
 
 async function saveStore(store: DataStore): Promise<void> {
+  assertLocalFsAllowed();
   writeQueue = writeQueue.then(async () => {
     await fs.mkdir(DATA_DIR, { recursive: true });
     await fs.writeFile(STORE_PATH, JSON.stringify(store, null, 2), "utf-8");
