@@ -1,0 +1,29 @@
+import { db } from "@/lib/db";
+import { jsonError, jsonOk, readJson } from "@/lib/api";
+
+type Params = { params: Promise<{ id: string }> };
+
+export async function GET(_request: Request, { params }: Params) {
+  const { id } = await params;
+  const metrics = await db.listDaily(id);
+  return jsonOk(metrics);
+}
+
+export async function POST(request: Request, { params }: Params) {
+  try {
+    const { id } = await params;
+    const body = await readJson<{
+      date: string;
+      impressions?: number | null;
+      reach?: number | null;
+      clicks?: number | null;
+      spend?: number | null;
+      conversions?: number | null;
+      video_views?: number | null;
+    }>(request);
+    const result = await db.upsertDaily(id, body);
+    return jsonOk(result, { status: 201 });
+  } catch (e) {
+    return jsonError(e instanceof Error ? e.message : "Ошибка сохранения");
+  }
+}
