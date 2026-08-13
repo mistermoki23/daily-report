@@ -9,6 +9,8 @@ import {
   attachSessionCookie,
   createSessionToken,
 } from "@/lib/auth/session";
+import { logActivity } from "@/lib/auth/activity";
+import { prisma } from "@/lib/db/prisma-client";
 
 export async function POST(request: Request) {
   try {
@@ -30,6 +32,13 @@ export async function POST(request: Request) {
       return jsonError("Неверный email или пароль", 401);
     }
 
+    const now = new Date();
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: now },
+    });
+    await logActivity({ userId: user.id, action: "LOGIN" });
+
     const token = await createSessionToken({
       userId: user.id,
       email: user.email,
@@ -41,6 +50,7 @@ export async function POST(request: Request) {
         email: user.email,
         role: user.role,
         created_at: user.created_at,
+        last_login_at: now.toISOString(),
       },
     });
     return attachSessionCookie(res, token);

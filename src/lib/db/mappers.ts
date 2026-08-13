@@ -42,6 +42,7 @@ export function mapUser(row: PrismaUser): User {
     name: row.name,
     role: row.role,
     created_at: row.createdAt.toISOString(),
+    last_login_at: row.lastLoginAt?.toISOString() ?? null,
   };
 }
 

@@ -36,7 +36,8 @@ export async function createAuthUser(input: {
         name: input.name.trim(),
         email,
         passwordHash,
-        role: input.role ?? "employee",
+        // Public registration is always USER — never ADMIN
+        role: "USER",
       },
     });
     return mapUser(row);

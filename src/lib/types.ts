@@ -85,6 +85,7 @@ export interface User {
   name: string;
   role: string;
   created_at: string;
+  last_login_at?: string | null;
 }
 
 /** Stored user row (local JSON) — password never sent to clients */

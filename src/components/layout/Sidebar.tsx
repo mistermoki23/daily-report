@@ -10,8 +10,10 @@ import {
   Settings,
   LogOut,
   ClipboardList,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isAdminRole } from "@/lib/auth/roles";
 import type { User } from "@/lib/types";
 
 const nav = [
@@ -26,6 +28,7 @@ const nav = [
 export function Sidebar({ user }: { user: User }) {
   const pathname = usePathname();
   const router = useRouter();
+  const showAdmin = isAdminRole(user.role);
 
   return (
     <aside className="flex h-screen w-52 shrink-0 flex-col border-r border-slate-200 bg-slate-50">
@@ -57,12 +60,26 @@ export function Sidebar({ user }: { user: User }) {
             </Link>
           );
         })}
+        {showAdmin && (
+          <Link
+            href="/admin"
+            className={cn(
+              "flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] transition-colors",
+              pathname.startsWith("/admin")
+                ? "border border-slate-200 bg-white text-slate-900 shadow-sm"
+                : "text-slate-600 hover:bg-white/70 hover:text-slate-900"
+            )}
+          >
+            <Shield className="h-3.5 w-3.5" />
+            Admin
+          </Link>
+        )}
       </nav>
 
       <div className="border-t border-slate-200 p-2">
         <div className="rounded-md border border-slate-200 bg-white px-2.5 py-2">
           <div className="text-xs font-medium text-slate-900">{user.name}</div>
-          <div className="text-[10px] capitalize text-slate-500">{user.role}</div>
+          <div className="text-[10px] uppercase text-slate-500">{user.role}</div>
           <button
             type="button"
             onClick={async () => {

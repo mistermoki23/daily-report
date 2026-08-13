@@ -14,7 +14,8 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
-    "db:pg": "node scripts/pg-embedded.cjs"
+    "db:pg": "node scripts/pg-embedded.cjs",
+    "admin:promote": "tsx scripts/promote-admin.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

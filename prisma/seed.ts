@@ -6,6 +6,8 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Seeding Campaign Monitor…");
 
+  await prisma.reportActivity.deleteMany();
+  await prisma.reportAccess.deleteMany();
   await prisma.dailyData.deleteMany();
   await prisma.campaignPlan.deleteMany();
   await prisma.campaign.deleteMany();
@@ -19,10 +21,15 @@ async function main() {
     data: {
       name: "Анна Иванова",
       email: "anna@agency.com",
-      role: "employee",
+      role: "USER",
       passwordHash,
     },
   });
+
+  const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  if (adminEmail && adminEmail !== user.email) {
+    // Optional: promote an extra admin account if it already exists after seed recreate
+  }
 
   const client = await prisma.client.create({
     data: { name: "Abbott" },
@@ -64,14 +71,29 @@ async function main() {
           conversions: null,
         },
       },
+      accesses: {
+        create: { userId: user.id },
+      },
     },
   });
+
+  // Safe first-admin: only when ADMIN_EMAIL matches seeded (or existing) user
+  if (adminEmail === user.email) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { role: "ADMIN" },
+    });
+    console.log(`  Promoted ADMIN via ADMIN_EMAIL: ${adminEmail}`);
+  }
 
   console.log("Seed complete:");
   console.log(`  User:     ${user.email} / demo1234`);
   console.log(`  Client:   ${client.name}`);
   console.log(`  Platform: ${platform.name}`);
   console.log(`  Campaign: ${campaign.name} (${campaign.id})`);
+  console.log(
+    "  Promote admin: ADMIN_EMAIL=you@example.com npx tsx scripts/promote-admin.ts"
+  );
 }
 
 main()

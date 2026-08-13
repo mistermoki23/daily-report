@@ -68,20 +68,37 @@ export default function DashboardPage() {
     let cancelled = false;
     async function load() {
       setLoading(true);
-      const [dashRes, clientsRes, platformsRes] = await Promise.all([
-        fetch(`/api/dashboard?${query}`),
-        fetch("/api/clients"),
-        fetch("/api/platforms"),
-      ]);
-      const dash = await dashRes.json();
-      if (!cancelled) {
-        setStats(dash.stats);
-        setCampaigns(dash.campaigns);
-        setDailyUpdate(dash.dailyUpdate);
-        setPerformance(dash.performance);
-        setClients(await clientsRes.json());
-        setPlatforms(await platformsRes.json());
-        setLoading(false);
+      try {
+        const [dashRes, clientsRes, platformsRes] = await Promise.all([
+          fetch(`/api/dashboard?${query}`),
+          fetch("/api/clients"),
+          fetch("/api/platforms"),
+        ]);
+        const dash = await dashRes.json();
+        const clientsData = await clientsRes.json();
+        const platformsData = await platformsRes.json();
+        if (cancelled) return;
+
+        // /api/dashboard returns { stats, campaigns, dailyUpdate, performance }
+        // On auth/DB errors it returns { error } without campaigns.
+        const nextCampaigns = Array.isArray(dash?.campaigns) ? dash.campaigns : [];
+        setCampaigns(nextCampaigns);
+        setStats(dash?.stats ?? null);
+        setDailyUpdate(
+          dash?.dailyUpdate &&
+            typeof dash.dailyUpdate === "object" &&
+            Array.isArray(dash.dailyUpdate.items)
+            ? {
+                count: Number(dash.dailyUpdate.count) || 0,
+                items: dash.dailyUpdate.items,
+              }
+            : { count: 0, items: [] }
+        );
+        setPerformance(dash?.performance ?? null);
+        setClients(Array.isArray(clientsData) ? clientsData : []);
+        setPlatforms(Array.isArray(platformsData) ? platformsData : []);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
     load();
@@ -91,7 +108,9 @@ export default function DashboardPage() {
   }, [query]);
 
   const todayLabel = format(new Date(), "d MMMM yyyy", { locale: ru });
-  const activeCampaigns = campaigns.filter((c) => c.status !== "completed");
+  const activeCampaigns = (campaigns ?? []).filter(
+    (c) => c.status !== "completed"
+  );
 
   const grouped = useMemo(() => {
     if (view === "all") return null;

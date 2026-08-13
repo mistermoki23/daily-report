@@ -14,8 +14,9 @@ export default function DailyUpdatePage() {
     async function load() {
       const res = await fetch("/api/dashboard");
       const data = await res.json();
-      setCount(data.dailyUpdate.count);
-      setItems(data.dailyUpdate.items);
+      const daily = data?.dailyUpdate;
+      setCount(Number(daily?.count) || 0);
+      setItems(Array.isArray(daily?.items) ? daily.items : []);
       setLoading(false);
     }
     load();

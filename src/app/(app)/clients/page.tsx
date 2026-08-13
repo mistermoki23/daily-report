@@ -45,9 +45,10 @@ export default function ClientsPage() {
     ]);
     const clientsData = await clientsRes.json();
     const dash = await dashRes.json();
-    const rows: ClientRow[] = clientsData.map(
+    const campaigns = Array.isArray(dash?.campaigns) ? dash.campaigns : [];
+    const rows: ClientRow[] = (Array.isArray(clientsData) ? clientsData : []).map(
       (c: { id: string; name: string }) => {
-        const related = dash.campaigns.filter(
+        const related = campaigns.filter(
           (s: { campaign: { client_id: string } }) =>
             s.campaign.client_id === c.id
         );

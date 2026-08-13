@@ -26,7 +26,8 @@ export async function getDashboardData(
     currency?: string;
   }
 ) {
-  let summaries = await db.listCampaigns(userId);
+  let summaries = (await db.listCampaigns(userId)) ?? [];
+  if (!Array.isArray(summaries)) summaries = [];
 
   if (filters?.clientId) {
     summaries = summaries.filter((s) => s.campaign.client_id === filters.clientId);

@@ -1,6 +1,8 @@
 import "server-only";
 
 import { Prisma } from "@prisma/client";
+import { logActivity } from "@/lib/auth/activity";
+import { userHasReportAccess } from "@/lib/auth/report-access";
 import { buildCampaignSummary } from "@/lib/calculations";
 import { prisma } from "@/lib/db/prisma-client";
 import {
@@ -45,9 +47,19 @@ async function syncCampaignStatus(id: string) {
   });
 }
 
+async function requireAccessibleCampaign(campaignId: string, userId: string) {
+  const hasAccess = await userHasReportAccess(userId, campaignId);
+  if (!hasAccess) throw new Error("Кампания не найдена");
+  const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
+  if (!campaign) throw new Error("Кампания не найдена");
+  return campaign;
+}
+
 export const prismaDb = {
   async reset() {
     const { hash } = await import("bcryptjs");
+    await prisma.reportActivity.deleteMany();
+    await prisma.reportAccess.deleteMany();
     await prisma.dailyData.deleteMany();
     await prisma.campaignPlan.deleteMany();
     await prisma.campaign.deleteMany();
@@ -60,7 +72,7 @@ export const prismaDb = {
       data: {
         name: "Анна Иванова",
         email: "anna@agency.com",
-        role: "employee",
+        role: "USER",
         passwordHash,
       },
     });
@@ -98,6 +110,9 @@ export const prismaDb = {
             videoViews: 27_000,
             conversions: null,
           },
+        },
+        accesses: {
+          create: { userId: user.id },
         },
       },
     });
@@ -151,7 +166,7 @@ export const prismaDb = {
 
   async listCampaigns(userId: string) {
     const rows = await prisma.campaign.findMany({
-      where: { userId },
+      where: { accesses: { some: { userId } } },
       include: campaignInclude,
       orderBy: { name: "asc" },
     });
@@ -159,11 +174,14 @@ export const prismaDb = {
   },
 
   async getCampaign(id: string, userId: string) {
-    const row = await prisma.campaign.findFirst({
-      where: { id, userId },
+    const hasAccess = await userHasReportAccess(userId, id);
+    if (!hasAccess) return null;
+    const row = await prisma.campaign.findUnique({
+      where: { id },
       include: campaignInclude,
     });
     if (!row) return null;
+    await logActivity({ userId, action: "REPORT_OPENED", reportId: id });
     return buildCampaignSummary(mapCampaignWithRelations(row));
   },
 
@@ -215,6 +233,7 @@ export const prismaDb = {
         primaryKpi: input.primary_kpi,
         status: "attention",
         plan: { create: plan },
+        accesses: { create: { userId: input.user_id } },
       },
       include: campaignInclude,
     });
@@ -239,8 +258,7 @@ export const prismaDb = {
       kpis: { kpi_type: KpiType; planned_value: number }[];
     }>
   ) {
-    const existing = await prisma.campaign.findFirst({ where: { id, userId } });
-    if (!existing) throw new Error("Кампания не найдена");
+    const existing = await requireAccessibleCampaign(id, userId);
 
     const start = input.start_date
       ? parseDateOnly(input.start_date)
@@ -283,19 +301,25 @@ export const prismaDb = {
     await syncCampaignStatus(id);
     const summary = await loadCampaignSummary(id);
     if (!summary) throw new Error("Кампания не найдена");
+
+    await logActivity({ userId, action: "REPORT_UPDATED", reportId: id });
+    if (summary.status === "completed") {
+      await logActivity({ userId, action: "REPORT_COMPLETED", reportId: id });
+    }
+
     return summary;
   },
 
   async deleteCampaign(id: string, userId: string) {
-    const result = await prisma.campaign.deleteMany({ where: { id, userId } });
-    if (result.count === 0) throw new Error("Кампания не найдена");
+    const existing = await requireAccessibleCampaign(id, userId);
+    if (existing.userId !== userId) {
+      throw new Error("Кампания не найдена");
+    }
+    await prisma.campaign.delete({ where: { id } });
   },
 
   async listDaily(campaignId: string, userId: string) {
-    const owned = await prisma.campaign.findFirst({
-      where: { id: campaignId, userId },
-    });
-    if (!owned) throw new Error("Кампания не найдена");
+    await requireAccessibleCampaign(campaignId, userId);
     const rows = await prisma.dailyData.findMany({
       where: { campaignId },
       orderBy: { date: "asc" },
@@ -317,10 +341,7 @@ export const prismaDb = {
     },
     options?: { allowUpdate?: boolean; id?: string }
   ) {
-    const campaign = await prisma.campaign.findFirst({
-      where: { id: campaignId, userId },
-    });
-    if (!campaign) throw new Error("Кампания не найдена");
+    const campaign = await requireAccessibleCampaign(campaignId, userId);
 
     const date = input.date.slice(0, 10);
     const start = campaign.startDate.toISOString().slice(0, 10);
@@ -390,6 +411,10 @@ export const prismaDb = {
       where: { campaignId_date: { campaignId, date: dateObj } },
     });
 
+    const priorDailyCount = await prisma.dailyData.count({
+      where: { campaignId },
+    });
+
     let row;
     if (options?.id) {
       const existing = await prisma.dailyData.findFirst({
@@ -420,6 +445,27 @@ export const prismaDb = {
     await syncCampaignStatus(campaignId);
     const summary = await loadCampaignSummary(campaignId);
     if (!summary) throw new Error("Кампания не найдена");
+
+    if (priorDailyCount === 0) {
+      await logActivity({
+        userId,
+        action: "REPORT_STARTED",
+        reportId: campaignId,
+      });
+    }
+    await logActivity({
+      userId,
+      action: "REPORT_UPDATED",
+      reportId: campaignId,
+    });
+    if (summary.status === "completed") {
+      await logActivity({
+        userId,
+        action: "REPORT_COMPLETED",
+        reportId: campaignId,
+      });
+    }
+
     return { metric: mapDaily(row), summary };
   },
 
@@ -437,10 +483,7 @@ export const prismaDb = {
       video_views?: number | null;
     }
   ) {
-    const owned = await prisma.campaign.findFirst({
-      where: { id: campaignId, userId },
-    });
-    if (!owned) throw new Error("Кампания не найдена");
+    await requireAccessibleCampaign(campaignId, userId);
     const existing = await prisma.dailyData.findFirst({
       where: { id: metricId, campaignId },
     });
@@ -476,10 +519,7 @@ export const prismaDb = {
   },
 
   async deleteDaily(campaignId: string, metricId: string, userId: string) {
-    const owned = await prisma.campaign.findFirst({
-      where: { id: campaignId, userId },
-    });
-    if (!owned) throw new Error("Кампания не найдена");
+    await requireAccessibleCampaign(campaignId, userId);
     await prisma.dailyData.deleteMany({
       where: { id: metricId, campaignId },
     });

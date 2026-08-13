@@ -141,7 +141,7 @@ export const localDb = {
       id: crypto.randomUUID(),
       name: input.name,
       email: input.email,
-      role: input.role ?? "employee",
+      role: input.role ?? "USER",
       password_hash: input.passwordHash,
       created_at: now,
       updated_at: now,

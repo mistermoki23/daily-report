@@ -51,9 +51,11 @@ function CampaignsContent() {
         fetch("/api/platforms"),
       ]);
       const dash = await dashRes.json();
-      setCampaigns(dash.campaigns);
-      setClients(await clientsRes.json());
-      setPlatforms(await platformsRes.json());
+      const clientsData = await clientsRes.json();
+      const platformsData = await platformsRes.json();
+      setCampaigns(Array.isArray(dash?.campaigns) ? dash.campaigns : []);
+      setClients(Array.isArray(clientsData) ? clientsData : []);
+      setPlatforms(Array.isArray(platformsData) ? platformsData : []);
     }
     load();
   }, [query]);
