@@ -1,8 +1,6 @@
 import "server-only";
 
 import { prisma } from "@/lib/db/prisma-client";
-import { isAdminRole } from "@/lib/auth/roles";
-import { userHasReportAccess } from "@/lib/auth/report-access";
 import { logActivity } from "@/lib/auth/activity";
 import { buildCampaignSummary } from "@/lib/calculations";
 import {
@@ -14,8 +12,9 @@ import {
   EDITABLE_PLAN_KPIS,
   type EditablePlanKpi,
 } from "@/lib/campaigns/plan-fields";
+import { canAccessCampaign } from "@/lib/campaigns/manage";
 
-export { EDITABLE_PLAN_KPIS, type EditablePlanKpi };
+export { EDITABLE_PLAN_KPIS, type EditablePlanKpi, canAccessCampaign };
 
 const campaignInclude = {
   client: true,
@@ -40,19 +39,9 @@ function valuesEqual(
   return Number(a) === Number(b);
 }
 
-export async function canAccessCampaign(
-  userId: string,
-  campaignId: string,
-  role?: string
-): Promise<boolean> {
-  if (isAdminRole(role)) {
-    const exists = await prisma.campaign.findUnique({
-      where: { id: campaignId },
-      select: { id: true },
-    });
-    return !!exists;
-  }
-  return userHasReportAccess(userId, campaignId);
+function str(v: number | null | undefined): string | null {
+  if (v == null) return null;
+  return String(v);
 }
 
 export async function updateCampaignPlan(
@@ -60,11 +49,11 @@ export async function updateCampaignPlan(
   user: User,
   input: Partial<Record<EditablePlanKpi, number | null>>
 ) {
-  const allowed = await canAccessCampaign(campaignId, user.id, user.role);
+  const allowed = await canAccessCampaign(user.id, campaignId, user.role);
   if (!allowed) throw new Error("Кампания не найдена");
 
-  const campaign = await prisma.campaign.findUnique({
-    where: { id: campaignId },
+  const campaign = await prisma.campaign.findFirst({
+    where: { id: campaignId, deletedAt: null },
     include: { plan: true },
   });
   if (!campaign) throw new Error("Кампания не найдена");
@@ -175,6 +164,18 @@ export async function updateCampaignPlan(
         field: c.field,
         oldValue: c.oldValue,
         newValue: c.newValue,
+      })),
+    });
+
+    await tx.campaignChangeLog.createMany({
+      data: changes.map((c) => ({
+        campaignId,
+        userId: user.id,
+        userEmail: user.email,
+        action: "EDIT" as const,
+        field: c.field,
+        oldValue: str(c.oldValue),
+        newValue: str(c.newValue),
       })),
     });
   });

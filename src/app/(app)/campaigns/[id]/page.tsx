@@ -11,6 +11,8 @@ import { CalculatedMetricsBlock } from "@/components/CalculatedMetricsBlock";
 import { CampaignChart } from "@/components/CampaignChart";
 import { DailyMetricsTable, DailyPerformanceTable } from "@/components/DailyMetricsTable";
 import { EditPlanDialog } from "@/components/EditPlanDialog";
+import { EditCampaignDialog } from "@/components/EditCampaignDialog";
+import { DeleteCampaignDialog } from "@/components/DeleteCampaignDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   availableCalculatedMetrics,
@@ -48,6 +50,8 @@ export default function CampaignDetailPage() {
   const [selectedTab, setSelectedTab] = useState<TabId | null>(null);
   const [error, setError] = useState("");
   const [editPlanOpen, setEditPlanOpen] = useState(false);
+  const [editCampaignOpen, setEditCampaignOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -200,7 +204,15 @@ export default function CampaignDetailPage() {
             </p>
           ) : null}
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setEditCampaignOpen(true)}
+          >
+            Редактировать кампанию
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -208,6 +220,15 @@ export default function CampaignDetailPage() {
             onClick={() => setEditPlanOpen(true)}
           >
             Редактировать план
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+            onClick={() => setDeleteOpen(true)}
+          >
+            Удалить
           </Button>
           <Link
             href={`/campaigns/${campaign.id}/daily`}
@@ -218,6 +239,16 @@ export default function CampaignDetailPage() {
         </div>
       </div>
 
+      <EditCampaignDialog
+        open={editCampaignOpen}
+        onOpenChange={setEditCampaignOpen}
+        summary={summary}
+        onSaved={(next) => {
+          setSummary(next);
+          setSelectedTab((prev) => prev ?? next.primaryKpi);
+        }}
+      />
+
       <EditPlanDialog
         open={editPlanOpen}
         onOpenChange={setEditPlanOpen}
@@ -226,6 +257,13 @@ export default function CampaignDetailPage() {
           setSummary(next);
           setSelectedTab((prev) => prev ?? next.primaryKpi);
         }}
+      />
+
+      <DeleteCampaignDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        campaignId={campaign.id}
+        campaignName={campaign.name}
       />
 
       {/* 2. KPI Summary */}

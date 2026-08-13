@@ -67,6 +67,7 @@ model User {
   reportAccess ReportAccess[]
   activities   ReportActivity[]
   planChanges  PlanChangeLog[]
+  changeLogs   CampaignChangeLog[]
 
   @@map("users")
 }
@@ -102,22 +103,25 @@ model Campaign {
   endDate    DateTime       @map("end_date") @db.Date
   status     CampaignStatus @default(attention)
   primaryKpi KpiType        @default(impressions) @map("primary_kpi")
+  deletedAt  DateTime?      @map("deleted_at")
   createdAt  DateTime       @default(now()) @map("created_at")
   updatedAt  DateTime       @updatedAt @map("updated_at")
 
-  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  client     Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  platform   Platform         @relation(fields: [platformId], references: [id], onDelete: Restrict)
-  plan       CampaignPlan?
-  dailyData  DailyData[]
-  accesses   ReportAccess[]
-  activities ReportActivity[]
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client      Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  platform    Platform            @relation(fields: [platformId], references: [id], onDelete: Restrict)
+  plan        CampaignPlan?
+  dailyData   DailyData[]
+  accesses    ReportAccess[]
+  activities  ReportActivity[]
   planChanges PlanChangeLog[]
+  changeLogs  CampaignChangeLog[]
 
   @@index([userId])
   @@index([clientId])
   @@index([platformId])
   @@index([startDate, endDate])
+  @@index([deletedAt])
   @@map("campaigns")
 }
 
@@ -210,4 +214,32 @@ model PlanChangeLog {
   @@index([userId, createdAt])
   @@index([createdAt])
   @@map("plan_change_logs")
+}
+
+enum CampaignChangeAction {
+  EDIT
+  DELETE
+  RESTORE
+}
+
+/// General campaign audit log (meta fields + DELETE/RESTORE). Plan KPI edits also stay in plan_change_logs.
+model CampaignChangeLog {
+  id         String                @id @default(uuid()) @db.Uuid
+  campaignId String                @map("campaign_id") @db.Uuid
+  userId     String                @map("user_id") @db.Uuid
+  userEmail  String                @map("user_email")
+  action     CampaignChangeAction
+  field      String
+  oldValue   String?               @map("old_value")
+  newValue   String?               @map("new_value")
+  createdAt  DateTime              @default(now()) @map("created_at")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId, createdAt])
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@index([createdAt])
+  @@map("campaign_change_logs")
 }

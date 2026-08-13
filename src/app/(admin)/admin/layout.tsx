@@ -33,6 +33,12 @@ export default async function AdminLayout({
             { href: "/admin/access", label: "Access", icon: "access" },
             { href: "/admin/activity", label: "Activity", icon: "activity" },
             { href: "/admin/plan-history", label: "Plan history", icon: "history" },
+            {
+              href: "/admin/campaign-history",
+              label: "Campaign audit",
+              icon: "audit",
+            },
+            { href: "/admin/deleted", label: "Deleted", icon: "deleted" },
           ]}
         />
         <div className="border-t border-slate-200 p-2">

@@ -9,6 +9,8 @@ import {
   KeyRound,
   Activity,
   History,
+  Trash2,
+  ScrollText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +21,8 @@ const ICONS = {
   access: KeyRound,
   activity: Activity,
   history: History,
+  deleted: Trash2,
+  audit: ScrollText,
 } as const;
 
 export function AdminNav({

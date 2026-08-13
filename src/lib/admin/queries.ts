@@ -24,8 +24,10 @@ export async function getAdminDashboardStats() {
     prisma.user.count(),
     prisma.user.count({ where: { createdAt: { gte: weekAgo } } }),
     prisma.user.count({ where: { lastLoginAt: { gte: monthAgo } } }),
-    prisma.campaign.count(),
-    prisma.campaign.count({ where: { status: { not: "completed" } } }),
+    prisma.campaign.count({ where: { deletedAt: null } }),
+    prisma.campaign.count({
+      where: { deletedAt: null, status: { not: "completed" } },
+    }),
   ]);
 
   return {
@@ -106,7 +108,9 @@ export async function getAdminUserDetail(userId: string) {
       .map((a) => a.reportId as string)
   );
 
-  const availableReports = user.reportAccess.map((a) => {
+  const availableReports = user.reportAccess
+    .filter((a) => a.report.deletedAt == null)
+    .map((a) => {
     const r = a.report;
     const progress = fillProgress(r.startDate, r.endDate, r._count.dailyData);
     const lastChange =
@@ -140,6 +144,7 @@ export async function getAdminUserDetail(userId: string) {
 
 export async function listAdminReports() {
   const reports = await prisma.campaign.findMany({
+    where: { deletedAt: null },
     orderBy: { updatedAt: "desc" },
     include: {
       _count: { select: { accesses: true, dailyData: true } },
@@ -176,6 +181,7 @@ export async function getAccessMatrix() {
       select: { id: true, name: true, email: true },
     }),
     prisma.campaign.findMany({
+      where: { deletedAt: null },
       orderBy: { name: "asc" },
       select: { id: true, name: true, status: true },
     }),

@@ -54,15 +54,17 @@ async function requireAccessibleCampaign(
   role?: string
 ) {
   if (isAdminRole(role)) {
-    const campaign = await prisma.campaign.findUnique({
-      where: { id: campaignId },
+    const campaign = await prisma.campaign.findFirst({
+      where: { id: campaignId, deletedAt: null },
     });
     if (!campaign) throw new Error("Кампания не найдена");
     return campaign;
   }
   const hasAccess = await userHasReportAccess(userId, campaignId);
   if (!hasAccess) throw new Error("Кампания не найдена");
-  const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
+  const campaign = await prisma.campaign.findFirst({
+    where: { id: campaignId, deletedAt: null },
+  });
   if (!campaign) throw new Error("Кампания не найдена");
   return campaign;
 }
@@ -70,6 +72,7 @@ async function requireAccessibleCampaign(
 export const prismaDb = {
   async reset() {
     const { hash } = await import("bcryptjs");
+    await prisma.campaignChangeLog.deleteMany();
     await prisma.planChangeLog.deleteMany();
     await prisma.reportActivity.deleteMany();
     await prisma.reportAccess.deleteMany();
@@ -179,7 +182,10 @@ export const prismaDb = {
 
   async listCampaigns(userId: string) {
     const rows = await prisma.campaign.findMany({
-      where: { accesses: { some: { userId } } },
+      where: {
+        deletedAt: null,
+        accesses: { some: { userId } },
+      },
       include: campaignInclude,
       orderBy: { name: "asc" },
     });
@@ -191,8 +197,8 @@ export const prismaDb = {
       const hasAccess = await userHasReportAccess(userId, id);
       if (!hasAccess) return null;
     }
-    const row = await prisma.campaign.findUnique({
-      where: { id },
+    const row = await prisma.campaign.findFirst({
+      where: { id, deletedAt: null },
       include: campaignInclude,
     });
     if (!row) return null;
@@ -325,12 +331,14 @@ export const prismaDb = {
     return summary;
   },
 
-  async deleteCampaign(id: string, userId: string) {
-    const existing = await requireAccessibleCampaign(id, userId);
-    if (existing.userId !== userId) {
-      throw new Error("Кампания не найдена");
-    }
-    await prisma.campaign.delete({ where: { id } });
+  async deleteCampaign(id: string, userId: string, role?: string) {
+    const { softDeleteCampaign } = await import("@/lib/campaigns/manage");
+    const { mapUser } = await import("@/lib/db/mappers");
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new Error("Пользователь не найден");
+    const mapped = mapUser(user);
+    if (role) mapped.role = role;
+    await softDeleteCampaign(id, mapped);
   },
 
   async listDaily(campaignId: string, userId: string) {
