@@ -23,8 +23,8 @@ export const KPI_TYPES: KpiType[] = [
   "reach",
   "clicks",
   "spend",
-  "conversions",
   "video_views",
+  "conversions",
 ];
 
 /** KPIs that sum across days */
@@ -45,7 +45,7 @@ export const KPI_LABELS: Record<KpiType, string> = {
   clicks: "Clicks",
   spend: "Spend",
   conversions: "Conversions",
-  video_views: "Video Views",
+  video_views: "Views — Досмотры",
 };
 
 export const CALCULATED_LABELS: Record<CalculatedMetricType, string> = {

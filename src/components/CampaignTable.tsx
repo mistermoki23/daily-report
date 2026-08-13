@@ -17,7 +17,7 @@ import {
   formatNumber,
   formatPercent,
 } from "@/lib/calculations";
-import type { CampaignSummary } from "@/lib/types";
+import { KPI_LABELS, type CampaignSummary } from "@/lib/types";
 
 export function CampaignTable({
   campaigns,
@@ -73,6 +73,9 @@ export function CampaignTable({
                     >
                       {row.campaign.name}
                     </Link>
+                    <div className="mt-0.5 text-[10px] text-slate-500">
+                      Primary: {KPI_LABELS[row.primaryKpi]}
+                    </div>
                     {row.missingDays > 0 && row.status !== "completed" ? (
                       <div className="mt-0.5 text-[10px] text-amber-600">
                         Missing: {row.missingDays}d

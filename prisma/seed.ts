@@ -7,6 +7,7 @@ async function main() {
   console.log("Seeding Campaign Monitor…");
 
   await prisma.reportActivity.deleteMany();
+  await prisma.planChangeLog.deleteMany();
   await prisma.reportAccess.deleteMany();
   await prisma.dailyData.deleteMany();
   await prisma.campaignPlan.deleteMany();

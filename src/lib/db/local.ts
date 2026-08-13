@@ -210,7 +210,7 @@ export const localDb = {
       .sort((a, b) => a.campaign.name.localeCompare(b.campaign.name, "ru"));
   },
 
-  async getCampaign(id: string, userId: string) {
+  async getCampaign(id: string, userId: string, _role?: string) {
     const store = await ensureStore();
     const campaign = store.campaigns.find(
       (c) => c.id === id && c.user_id === userId

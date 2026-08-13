@@ -3,6 +3,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { logActivity } from "@/lib/auth/activity";
 import { userHasReportAccess } from "@/lib/auth/report-access";
+import { isAdminRole } from "@/lib/auth/roles";
 import { buildCampaignSummary } from "@/lib/calculations";
 import { prisma } from "@/lib/db/prisma-client";
 import {
@@ -47,7 +48,18 @@ async function syncCampaignStatus(id: string) {
   });
 }
 
-async function requireAccessibleCampaign(campaignId: string, userId: string) {
+async function requireAccessibleCampaign(
+  campaignId: string,
+  userId: string,
+  role?: string
+) {
+  if (isAdminRole(role)) {
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+    });
+    if (!campaign) throw new Error("Кампания не найдена");
+    return campaign;
+  }
   const hasAccess = await userHasReportAccess(userId, campaignId);
   if (!hasAccess) throw new Error("Кампания не найдена");
   const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
@@ -58,6 +70,7 @@ async function requireAccessibleCampaign(campaignId: string, userId: string) {
 export const prismaDb = {
   async reset() {
     const { hash } = await import("bcryptjs");
+    await prisma.planChangeLog.deleteMany();
     await prisma.reportActivity.deleteMany();
     await prisma.reportAccess.deleteMany();
     await prisma.dailyData.deleteMany();
@@ -173,9 +186,11 @@ export const prismaDb = {
     return rows.map((row) => buildCampaignSummary(mapCampaignWithRelations(row)));
   },
 
-  async getCampaign(id: string, userId: string) {
-    const hasAccess = await userHasReportAccess(userId, id);
-    if (!hasAccess) return null;
+  async getCampaign(id: string, userId: string, role?: string) {
+    if (!isAdminRole(role)) {
+      const hasAccess = await userHasReportAccess(userId, id);
+      if (!hasAccess) return null;
+    }
     const row = await prisma.campaign.findUnique({
       where: { id },
       include: campaignInclude,

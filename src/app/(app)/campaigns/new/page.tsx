@@ -44,16 +44,16 @@ export default function NewCampaignPage() {
     reach: true,
     clicks: true,
     spend: true,
+    video_views: true,
     conversions: false,
-    video_views: false,
   });
   const [kpiValues, setKpiValues] = useState<Record<KpiType, string>>({
     impressions: "",
     reach: "",
     clicks: "",
     spend: "",
-    conversions: "",
     video_views: "",
+    conversions: "",
   });
 
   useEffect(() => {

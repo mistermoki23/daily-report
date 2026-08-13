@@ -51,6 +51,7 @@ enum ActivityAction {
   REPORT_STARTED
   REPORT_UPDATED
   REPORT_COMPLETED
+  PLAN_UPDATED
 }
 
 model User {
@@ -65,6 +66,7 @@ model User {
   campaigns    Campaign[]
   reportAccess ReportAccess[]
   activities   ReportActivity[]
+  planChanges  PlanChangeLog[]
 
   @@map("users")
 }
@@ -110,6 +112,7 @@ model Campaign {
   dailyData  DailyData[]
   accesses   ReportAccess[]
   activities ReportActivity[]
+  planChanges PlanChangeLog[]
 
   @@index([userId])
   @@index([clientId])
@@ -187,4 +190,24 @@ model ReportActivity {
   @@index([reportId, createdAt])
   @@index([action, createdAt])
   @@map("report_activity")
+}
+
+/// Audit log for campaign plan KPI edits (old → new per field).
+model PlanChangeLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  campaignId String   @map("campaign_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  userEmail  String   @map("user_email")
+  field      String
+  oldValue   Decimal? @map("old_value") @db.Decimal(18, 4)
+  newValue   Decimal? @map("new_value") @db.Decimal(18, 4)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId, createdAt])
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@map("plan_change_logs")
 }

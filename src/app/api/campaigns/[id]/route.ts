@@ -9,7 +9,7 @@ export async function GET(_request: Request, { params }: Params) {
   try {
     const user = await requireSessionUser();
     const { id } = await params;
-    const campaign = await db.getCampaign(id, user.id);
+    const campaign = await db.getCampaign(id, user.id, user.role);
     if (!campaign) return jsonError("Кампания не найдена", 404);
     return jsonOk(campaign);
   } catch (e) {

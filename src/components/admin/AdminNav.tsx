@@ -8,6 +8,7 @@ import {
   FileBarChart2,
   KeyRound,
   Activity,
+  History,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +18,7 @@ const ICONS = {
   reports: FileBarChart2,
   access: KeyRound,
   activity: Activity,
+  history: History,
 } as const;
 
 export function AdminNav({

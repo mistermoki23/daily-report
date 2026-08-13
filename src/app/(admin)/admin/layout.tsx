@@ -32,6 +32,7 @@ export default async function AdminLayout({
             { href: "/admin/reports", label: "Reports", icon: "reports" },
             { href: "/admin/access", label: "Access", icon: "access" },
             { href: "/admin/activity", label: "Activity", icon: "activity" },
+            { href: "/admin/plan-history", label: "Plan history", icon: "history" },
           ]}
         />
         <div className="border-t border-slate-200 p-2">

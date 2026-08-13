@@ -3,13 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants, Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/StatusBadge";
 import { KpiCard } from "@/components/KpiCard";
 import { CalculatedMetricsBlock } from "@/components/CalculatedMetricsBlock";
 import { CampaignChart } from "@/components/CampaignChart";
 import { DailyMetricsTable, DailyPerformanceTable } from "@/components/DailyMetricsTable";
+import { EditPlanDialog } from "@/components/EditPlanDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   availableCalculatedMetrics,
@@ -46,6 +47,7 @@ export default function CampaignDetailPage() {
   const [summary, setSummary] = useState<CampaignSummary | null>(null);
   const [selectedTab, setSelectedTab] = useState<TabId | null>(null);
   const [error, setError] = useState("");
+  const [editPlanOpen, setEditPlanOpen] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -198,13 +200,33 @@ export default function CampaignDetailPage() {
             </p>
           ) : null}
         </div>
-        <Link
-          href={`/campaigns/${campaign.id}/daily`}
-          className={cn(buttonVariants({ size: "sm" }))}
-        >
-          Daily data
-        </Link>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setEditPlanOpen(true)}
+          >
+            Редактировать план
+          </Button>
+          <Link
+            href={`/campaigns/${campaign.id}/daily`}
+            className={cn(buttonVariants({ size: "sm" }))}
+          >
+            Daily data
+          </Link>
+        </div>
       </div>
+
+      <EditPlanDialog
+        open={editPlanOpen}
+        onOpenChange={setEditPlanOpen}
+        summary={summary}
+        onSaved={(next) => {
+          setSummary(next);
+          setSelectedTab((prev) => prev ?? next.primaryKpi);
+        }}
+      />
 
       {/* 2. KPI Summary */}
       <section className="space-y-2">
