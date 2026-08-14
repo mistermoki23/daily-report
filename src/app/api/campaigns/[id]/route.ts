@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { jsonError, jsonOk, readJson } from "@/lib/api";
-import { AuthError, requireSessionUser } from "@/lib/auth/current-user";
+import { AuthError, requireDeleteAccess, requireEditAccess, requireSessionUser } from "@/lib/auth/current-user";
 import {
   softDeleteCampaign,
   updateCampaignFull,
@@ -24,7 +24,7 @@ export async function GET(_request: Request, { params }: Params) {
 
 export async function PUT(request: Request, { params }: Params) {
   try {
-    const user = await requireSessionUser();
+    const user = await requireEditAccess();
     const { id } = await params;
     const body = await readJson<{
       name?: string;
@@ -74,7 +74,7 @@ export const PATCH = PUT;
 
 export async function DELETE(_request: Request, { params }: Params) {
   try {
-    const user = await requireSessionUser();
+    const user = await requireDeleteAccess();
     const { id } = await params;
     await softDeleteCampaign(id, user);
     return jsonOk({ ok: true });

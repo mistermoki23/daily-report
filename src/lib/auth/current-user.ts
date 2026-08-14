@@ -4,7 +4,13 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/db/prisma-client";
 import { mapUser } from "@/lib/db/mappers";
 import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth/session";
-import { isAdminRole } from "@/lib/auth/roles";
+import {
+  canAccessAdmin,
+  canCreate,
+  canDelete,
+  canEdit,
+  canUpdateDailyData,
+} from "@/lib/auth/permissions";
 import type { User } from "@/lib/types";
 
 export async function getSessionUser(): Promise<User | null> {
@@ -32,8 +38,41 @@ export async function requireSessionUser(): Promise<User> {
 
 export async function requireAdminUser(): Promise<User> {
   const user = await requireSessionUser();
-  if (!isAdminRole(user.role)) {
+  if (!canAccessAdmin(user.role)) {
     throw new AuthError("Требуются права администратора", 403);
+  }
+  return user;
+}
+
+/** ADMIN and MANAGER (legacy USER) may create campaigns, clients, platforms. */
+export async function requireWriteAccess(): Promise<User> {
+  const user = await requireSessionUser();
+  if (!canCreate(user.role)) {
+    throw new AuthError("Недостаточно прав для изменения данных", 403);
+  }
+  return user;
+}
+
+export async function requireEditAccess(): Promise<User> {
+  const user = await requireSessionUser();
+  if (!canEdit(user.role)) {
+    throw new AuthError("Недостаточно прав для изменения данных", 403);
+  }
+  return user;
+}
+
+export async function requireDailyAccess(): Promise<User> {
+  const user = await requireSessionUser();
+  if (!canUpdateDailyData(user.role)) {
+    throw new AuthError("Недостаточно прав для изменения Daily Data", 403);
+  }
+  return user;
+}
+
+export async function requireDeleteAccess(): Promise<User> {
+  const user = await requireSessionUser();
+  if (!canDelete(user.role)) {
+    throw new AuthError("Недостаточно прав для удаления", 403);
   }
   return user;
 }

@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useCanWrite } from "@/components/auth/CurrentUserProvider";
 
 type ClientRow = {
   id: string;
@@ -37,6 +38,7 @@ export default function ClientsPage() {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const canWrite = useCanWrite();
 
   async function load() {
     const [clientsRes, dashRes] = await Promise.all([
@@ -102,10 +104,12 @@ export default function ClientsPage() {
             Клиенты и связанные рекламные кампании
           </p>
         </div>
-        <Button className="gap-1.5" onClick={() => setOpen(true)}>
-          <Plus className="h-4 w-4" />
-          Добавить клиента
-        </Button>
+        {canWrite ? (
+          <Button className="gap-1.5" onClick={() => setOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Добавить клиента
+          </Button>
+        ) : null}
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">

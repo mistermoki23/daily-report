@@ -2,7 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getSessionUser } from "@/lib/auth/current-user";
-import { isAdminRole } from "@/lib/auth/roles";
+import { canAccessAdmin } from "@/lib/auth/permissions";
+import { displayRoleLabel } from "@/lib/auth/roles";
 import { AdminNav } from "@/components/admin/AdminNav";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +15,7 @@ export default async function AdminLayout({
 }) {
   const user = await getSessionUser();
   if (!user) redirect("/login");
-  if (!isAdminRole(user.role)) redirect("/dashboard");
+  if (!canAccessAdmin(user.role)) redirect("/access-denied");
 
   return (
     <div className="flex min-h-screen min-w-[1200px] bg-slate-100/70">
@@ -51,7 +52,9 @@ export default async function AdminLayout({
           </Link>
           <div className="mt-2 rounded-md border border-slate-200 bg-white px-2.5 py-2">
             <div className="text-xs font-medium text-slate-900">{user.name}</div>
-            <div className="text-[10px] text-slate-500">ADMIN</div>
+            <div className="text-[10px] text-slate-500">
+              {displayRoleLabel(user.role)}
+            </div>
           </div>
         </div>
       </aside>

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { displayRoleLabel } from "@/lib/auth/roles";
 
 type Report = { id: string; name: string; status: string };
 type UserRow = {
@@ -10,6 +11,7 @@ type UserRow = {
   firstName: string;
   lastName: string;
   email: string;
+  role?: string;
   reportIds: string[];
 };
 
@@ -116,7 +118,10 @@ export function AccessManager() {
               <div className="text-[13px] font-medium text-slate-900">
                 {u.firstName} {u.lastName}
               </div>
-              <div className="text-[11px] text-slate-500">{u.email}</div>
+              <div className="text-[11px] text-slate-500">
+                {u.email}
+                {u.role ? ` · ${displayRoleLabel(u.role)}` : ""}
+              </div>
             </button>
           ))}
           {users.length === 0 && (

@@ -3,6 +3,8 @@ import "server-only";
 import type { CurrencyCode, KpiType as PrismaKpiType } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma-client";
 import { isAdminRole } from "@/lib/auth/roles";
+import { canDelete, canEdit } from "@/lib/auth/permissions";
+import { AuthError } from "@/lib/auth/current-user";
 import { userHasReportAccess } from "@/lib/auth/report-access";
 import { logActivity } from "@/lib/auth/activity";
 import { buildCampaignSummary } from "@/lib/calculations";
@@ -94,6 +96,9 @@ export async function updateCampaignFull(
   user: User,
   input: CampaignUpdateInput
 ) {
+  if (!canEdit(user.role)) {
+    throw new AuthError("Недостаточно прав для изменения данных", 403);
+  }
   const allowed = await canAccessCampaign(user.id, campaignId, user.role);
   if (!allowed) throw new Error("Кампания не найдена");
 
@@ -328,6 +333,9 @@ export async function updateCampaignFull(
 }
 
 export async function softDeleteCampaign(campaignId: string, user: User) {
+  if (!canDelete(user.role)) {
+    throw new AuthError("Недостаточно прав для удаления", 403);
+  }
   const allowed = await canAccessCampaign(user.id, campaignId, user.role);
   if (!allowed) throw new Error("Кампания не найдена");
 
@@ -360,7 +368,7 @@ export async function softDeleteCampaign(campaignId: string, user: User) {
 
 export async function restoreCampaign(campaignId: string, user: User) {
   if (!isAdminRole(user.role)) {
-    throw new Error("Требуются права администратора");
+    throw new AuthError("Требуются права администратора", 403);
   }
 
   const campaign = await prisma.campaign.findFirst({

@@ -13,6 +13,8 @@ import {
   type EditablePlanKpi,
 } from "@/lib/campaigns/plan-fields";
 import { canAccessCampaign } from "@/lib/campaigns/manage";
+import { canEdit } from "@/lib/auth/permissions";
+import { AuthError } from "@/lib/auth/current-user";
 
 export { EDITABLE_PLAN_KPIS, type EditablePlanKpi, canAccessCampaign };
 
@@ -49,6 +51,9 @@ export async function updateCampaignPlan(
   user: User,
   input: Partial<Record<EditablePlanKpi, number | null>>
 ) {
+  if (!canEdit(user.role)) {
+    throw new AuthError("Недостаточно прав для изменения данных", 403);
+  }
   const allowed = await canAccessCampaign(user.id, campaignId, user.role);
   if (!allowed) throw new Error("Кампания не найдена");
 

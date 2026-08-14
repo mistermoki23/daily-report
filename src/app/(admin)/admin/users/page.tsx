@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { listAdminUsers } from "@/lib/admin/queries";
+import { RoleSelect } from "@/components/admin/RoleSelect";
 
 export default async function AdminUsersPage() {
   const users = await listAdminUsers();
@@ -8,7 +9,7 @@ export default async function AdminUsersPage() {
     <div className="space-y-4">
       <div>
         <h1 className="text-lg font-semibold text-slate-900">Users</h1>
-        <p className="text-sm text-slate-500">All registered accounts</p>
+        <p className="mt-0.5 text-sm text-slate-500">All registered accounts</p>
       </div>
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
         <table className="w-full text-left text-[13px]">
@@ -17,6 +18,7 @@ export default async function AdminUsersPage() {
               <th className="px-3 py-2 font-medium">First name</th>
               <th className="px-3 py-2 font-medium">Last name</th>
               <th className="px-3 py-2 font-medium">Email</th>
+              <th className="px-3 py-2 font-medium">Role</th>
               <th className="px-3 py-2 font-medium">Registered</th>
               <th className="px-3 py-2 font-medium">Last login</th>
               <th className="px-3 py-2 font-medium">Reports</th>
@@ -36,6 +38,9 @@ export default async function AdminUsersPage() {
                 </td>
                 <td className="px-3 py-2 text-slate-700">{u.lastName || "—"}</td>
                 <td className="px-3 py-2 text-slate-700">{u.email}</td>
+                <td className="px-3 py-2">
+                  <RoleSelect userId={u.id} currentRole={u.role} compact />
+                </td>
                 <td className="px-3 py-2 text-slate-600">
                   {new Date(u.registeredAt).toLocaleDateString()}
                 </td>
@@ -62,7 +67,7 @@ export default async function AdminUsersPage() {
             ))}
             {users.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-slate-500">
+                <td colSpan={8} className="px-3 py-6 text-center text-slate-500">
                   No users yet
                 </td>
               </tr>

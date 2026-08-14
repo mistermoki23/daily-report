@@ -36,8 +36,8 @@ export async function createAuthUser(input: {
         name: input.name.trim(),
         email,
         passwordHash,
-        // Public registration is always USER — never ADMIN
-        role: "USER",
+        // New registrations are MANAGER. Legacy USER rows stay USER in the DB.
+        role: "MANAGER",
       },
     });
     return mapUser(row);

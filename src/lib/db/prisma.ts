@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { logActivity } from "@/lib/auth/activity";
 import { userHasReportAccess } from "@/lib/auth/report-access";
 import { isAdminRole } from "@/lib/auth/roles";
+import { seesAllCampaigns } from "@/lib/auth/permissions";
 import { buildCampaignSummary } from "@/lib/calculations";
 import { prisma } from "@/lib/db/prisma-client";
 import {
@@ -180,12 +181,11 @@ export const prismaDb = {
     }
   },
 
-  async listCampaigns(userId: string) {
+  async listCampaigns(userId: string, role?: string) {
     const rows = await prisma.campaign.findMany({
-      where: {
-        deletedAt: null,
-        accesses: { some: { userId } },
-      },
+      where: seesAllCampaigns(role)
+        ? { deletedAt: null }
+        : { deletedAt: null, accesses: { some: { userId } } },
       include: campaignInclude,
       orderBy: { name: "asc" },
     });
@@ -341,8 +341,8 @@ export const prismaDb = {
     await softDeleteCampaign(id, mapped);
   },
 
-  async listDaily(campaignId: string, userId: string) {
-    await requireAccessibleCampaign(campaignId, userId);
+  async listDaily(campaignId: string, userId: string, role?: string) {
+    await requireAccessibleCampaign(campaignId, userId, role);
     const rows = await prisma.dailyData.findMany({
       where: { campaignId },
       orderBy: { date: "asc" },
@@ -362,9 +362,13 @@ export const prismaDb = {
       conversions?: number | null;
       video_views?: number | null;
     },
-    options?: { allowUpdate?: boolean; id?: string }
+    options?: { allowUpdate?: boolean; id?: string; role?: string }
   ) {
-    const campaign = await requireAccessibleCampaign(campaignId, userId);
+    const campaign = await requireAccessibleCampaign(
+      campaignId,
+      userId,
+      options?.role
+    );
 
     const date = input.date.slice(0, 10);
     const start = campaign.startDate.toISOString().slice(0, 10);
@@ -504,9 +508,10 @@ export const prismaDb = {
       spend?: number | null;
       conversions?: number | null;
       video_views?: number | null;
-    }
+    },
+    role?: string
   ) {
-    await requireAccessibleCampaign(campaignId, userId);
+    await requireAccessibleCampaign(campaignId, userId, role);
     const existing = await prisma.dailyData.findFirst({
       where: { id: metricId, campaignId },
     });
@@ -537,12 +542,17 @@ export const prismaDb = {
             ? input.video_views
             : decimalOrNull(existing.videoViews),
       },
-      { allowUpdate: true, id: metricId }
+      { allowUpdate: true, id: metricId, role }
     );
   },
 
-  async deleteDaily(campaignId: string, metricId: string, userId: string) {
-    await requireAccessibleCampaign(campaignId, userId);
+  async deleteDaily(
+    campaignId: string,
+    metricId: string,
+    userId: string,
+    role?: string
+  ) {
+    await requireAccessibleCampaign(campaignId, userId, role);
     await prisma.dailyData.deleteMany({
       where: { id: metricId, campaignId },
     });

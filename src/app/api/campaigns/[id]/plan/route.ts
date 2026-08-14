@@ -1,5 +1,5 @@
 import { jsonError, jsonOk, readJson } from "@/lib/api";
-import { AuthError, requireSessionUser } from "@/lib/auth/current-user";
+import { AuthError, requireEditAccess } from "@/lib/auth/current-user";
 import {
   EDITABLE_PLAN_KPIS,
   updateCampaignPlan,
@@ -26,7 +26,7 @@ function parsePlanValue(
 
 export async function PUT(request: Request, { params }: Params) {
   try {
-    const user = await requireSessionUser();
+    const user = await requireEditAccess();
     const { id } = await params;
     const body = await readJson<Record<string, unknown>>(request);
 

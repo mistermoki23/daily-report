@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAdminUserDetail } from "@/lib/admin/queries";
+import { RoleSelect } from "@/components/admin/RoleSelect";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -22,7 +23,10 @@ export default async function AdminUserDetailPage({ params }: Params) {
       </div>
 
       <div className="grid grid-cols-4 gap-3">
-        <Meta label="Role" value={user.role} />
+        <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+          <div className="text-[11px] text-slate-500">Role</div>
+          <RoleSelect userId={user.id} currentRole={user.role} />
+        </div>
         <Meta
           label="Registered"
           value={new Date(user.registeredAt).toLocaleDateString()}

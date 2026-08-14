@@ -201,7 +201,8 @@ export const localDb = {
     return platform;
   },
 
-  async listCampaigns(userId: string) {
+  async listCampaigns(userId: string, role?: string) {
+    void role;
     const store = await ensureStore();
     return store.campaigns
       .filter((c) => c.user_id === userId)
@@ -210,7 +211,8 @@ export const localDb = {
       .sort((a, b) => a.campaign.name.localeCompare(b.campaign.name, "ru"));
   },
 
-  async getCampaign(id: string, userId: string, _role?: string) {
+  async getCampaign(id: string, userId: string, role?: string) {
+    void role;
     const store = await ensureStore();
     const campaign = store.campaigns.find(
       (c) => c.id === id && c.user_id === userId
@@ -351,7 +353,8 @@ export const localDb = {
     await saveStore(store);
   },
 
-  async listDaily(campaignId: string, userId: string) {
+  async listDaily(campaignId: string, userId: string, role?: string) {
+    void role;
     const store = await ensureStore();
     const campaign = store.campaigns.find(
       (c) => c.id === campaignId && c.user_id === userId
@@ -374,7 +377,7 @@ export const localDb = {
       conversions?: number | null;
       video_views?: number | null;
     },
-    options?: { allowUpdate?: boolean; id?: string }
+    options?: { allowUpdate?: boolean; id?: string; role?: string }
   ) {
     const store = await ensureStore();
     const campaign = store.campaigns.find(
@@ -509,8 +512,10 @@ export const localDb = {
       spend?: number | null;
       conversions?: number | null;
       video_views?: number | null;
-    }
+    },
+    role?: string
   ) {
+    void role;
     const store = await ensureStore();
     const campaign = store.campaigns.find(
       (c) => c.id === campaignId && c.user_id === userId
@@ -539,7 +544,13 @@ export const localDb = {
     );
   },
 
-  async deleteDaily(campaignId: string, metricId: string, userId: string) {
+  async deleteDaily(
+    campaignId: string,
+    metricId: string,
+    userId: string,
+    role?: string
+  ) {
+    void role;
     const store = await ensureStore();
     const campaign = store.campaigns.find(
       (c) => c.id === campaignId && c.user_id === userId

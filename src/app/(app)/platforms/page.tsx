@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { Platform } from "@/lib/types";
+import { useCanWrite } from "@/components/auth/CurrentUserProvider";
 
 export default function PlatformsPage() {
   const [platforms, setPlatforms] = useState<Platform[]>([]);
@@ -28,6 +29,7 @@ export default function PlatformsPage() {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const canWrite = useCanWrite();
 
   async function load() {
     const res = await fetch("/api/platforms");
@@ -69,10 +71,12 @@ export default function PlatformsPage() {
             Рекламные площадки хранятся в базе и могут расширяться
           </p>
         </div>
-        <Button className="gap-1.5" onClick={() => setOpen(true)}>
-          <Plus className="h-4 w-4" />
-          Добавить площадку
-        </Button>
+        {canWrite ? (
+          <Button className="gap-1.5" onClick={() => setOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Добавить площадку
+          </Button>
+        ) : null}
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">

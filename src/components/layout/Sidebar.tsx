@@ -13,7 +13,12 @@ import {
   Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { isAdminRole } from "@/lib/auth/roles";
+import {
+  canAccessAdmin,
+  canAccessDailyUpdate,
+  canAccessSettings,
+} from "@/lib/auth/permissions";
+import { displayRoleLabel } from "@/lib/auth/roles";
 import type { User } from "@/lib/types";
 
 const nav = [
@@ -28,7 +33,12 @@ const nav = [
 export function Sidebar({ user }: { user: User }) {
   const pathname = usePathname();
   const router = useRouter();
-  const showAdmin = isAdminRole(user.role);
+  const showAdmin = canAccessAdmin(user.role);
+  const items = nav.filter((item) => {
+    if (item.href === "/settings") return canAccessSettings(user.role);
+    if (item.href === "/daily-update") return canAccessDailyUpdate(user.role);
+    return true;
+  });
 
   return (
     <aside className="flex h-screen w-52 shrink-0 flex-col border-r border-slate-200 bg-slate-50">
@@ -40,7 +50,7 @@ export function Sidebar({ user }: { user: User }) {
       </div>
 
       <nav className="flex-1 space-y-0.5 p-2">
-        {nav.map((item) => {
+        {items.map((item) => {
           const active =
             pathname === item.href || pathname.startsWith(item.href + "/");
           const Icon = item.icon;
@@ -79,7 +89,7 @@ export function Sidebar({ user }: { user: User }) {
       <div className="border-t border-slate-200 p-2">
         <div className="rounded-md border border-slate-200 bg-white px-2.5 py-2">
           <div className="text-xs font-medium text-slate-900">{user.name}</div>
-          <div className="text-[10px] uppercase text-slate-500">{user.role}</div>
+          <div className="text-[10px] text-slate-500">{displayRoleLabel(user.role)}</div>
           <button
             type="button"
             onClick={async () => {

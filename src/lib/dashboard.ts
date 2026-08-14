@@ -24,9 +24,10 @@ export async function getDashboardData(
     month?: string;
     search?: string;
     currency?: string;
-  }
+  },
+  role?: string
 ) {
-  let summaries = (await db.listCampaigns(userId)) ?? [];
+  let summaries = (await db.listCampaigns(userId, role)) ?? [];
   if (!Array.isArray(summaries)) summaries = [];
 
   if (filters?.clientId) {
@@ -153,9 +154,9 @@ export function buildPerformanceSummary(
   };
 }
 
-export async function getClientsWithStats(userId: string) {
+export async function getClientsWithStats(userId: string, role?: string) {
   const clients = await db.listClients();
-  const campaigns = await db.listCampaigns(userId);
+  const campaigns = await db.listCampaigns(userId, role);
   return clients.map((client) => {
     const related = campaigns.filter((c) => c.campaign.client_id === client.id);
     const active = related.filter((c) => c.status !== "completed").length;

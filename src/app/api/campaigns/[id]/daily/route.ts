@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { jsonError, jsonOk, readJson } from "@/lib/api";
-import { AuthError, requireSessionUser } from "@/lib/auth/current-user";
+import { AuthError, requireDailyAccess, requireSessionUser } from "@/lib/auth/current-user";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -8,7 +8,7 @@ export async function GET(_request: Request, { params }: Params) {
   try {
     const user = await requireSessionUser();
     const { id } = await params;
-    const metrics = await db.listDaily(id, user.id);
+    const metrics = await db.listDaily(id, user.id, user.role);
     return jsonOk(metrics);
   } catch (e) {
     if (e instanceof AuthError) return jsonError(e.message, e.status);
@@ -18,7 +18,7 @@ export async function GET(_request: Request, { params }: Params) {
 
 export async function POST(request: Request, { params }: Params) {
   try {
-    const user = await requireSessionUser();
+    const user = await requireDailyAccess();
     const { id } = await params;
     const body = await readJson<{
       date: string;
@@ -29,7 +29,7 @@ export async function POST(request: Request, { params }: Params) {
       conversions?: number | null;
       video_views?: number | null;
     }>(request);
-    const result = await db.upsertDaily(id, user.id, body);
+    const result = await db.upsertDaily(id, user.id, body, { role: user.role });
     return jsonOk(result, { status: 201 });
   } catch (e) {
     if (e instanceof AuthError) return jsonError(e.message, e.status);

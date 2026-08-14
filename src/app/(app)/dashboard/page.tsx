@@ -18,9 +18,8 @@ import { CampaignTable } from "@/components/CampaignTable";
 import { DailyUpdateCenter } from "@/components/DailyUpdateCenter";
 import { FilterBar, type FilterState } from "@/components/FilterBar";
 import { cn } from "@/lib/utils";
-import {
-  formatNumber,
-} from "@/lib/calculations";
+import { formatNumber } from "@/lib/calculations";
+import { useCanWrite } from "@/components/auth/CurrentUserProvider";
 import type {
   CampaignSummary,
   Client,
@@ -52,6 +51,7 @@ export default function DashboardPage() {
     currency: "",
   });
   const [loading, setLoading] = useState(true);
+  const canWrite = useCanWrite();
 
   const query = useMemo(() => {
     const params = new URLSearchParams();
@@ -133,10 +133,12 @@ export default function DashboardPage() {
           </h1>
           <p className="mt-0.5 text-sm text-slate-500">{todayLabel}</p>
         </div>
-        <Link href="/campaigns/new" className={cn(buttonVariants({ size: "sm" }), "gap-1.5")}>
-          <Plus className="h-3.5 w-3.5" />
-          Создать кампанию
-        </Link>
+        {canWrite ? (
+          <Link href="/campaigns/new" className={cn(buttonVariants({ size: "sm" }), "gap-1.5")}>
+            <Plus className="h-3.5 w-3.5" />
+            Создать кампанию
+          </Link>
+        ) : null}
       </div>
 
       <section className="space-y-2">
@@ -152,9 +154,11 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <section>
-        <DailyUpdateCenter count={dailyUpdate.count} items={dailyUpdate.items} />
-      </section>
+      {canWrite ? (
+        <section>
+          <DailyUpdateCenter count={dailyUpdate.count} items={dailyUpdate.items} />
+        </section>
+      ) : null}
 
       {performance ? (
         <section className="space-y-2">

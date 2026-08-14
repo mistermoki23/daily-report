@@ -26,6 +26,7 @@ import {
 } from "@/lib/calculations";
 import type { CampaignSummary, DailyMetric, KpiType } from "@/lib/types";
 import { KPI_LABELS } from "@/lib/types";
+import { useCanWrite } from "@/components/auth/CurrentUserProvider";
 
 type FormState = Record<KpiType | "date", string>;
 
@@ -51,6 +52,7 @@ export default function CampaignDailyPage() {
   const [form, setForm] = useState<FormState>(emptyForm([]));
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const canWrite = useCanWrite();
 
   async function load() {
     const res = await fetch(`/api/campaigns/${params.id}`);
@@ -222,10 +224,12 @@ export default function CampaignDailyPage() {
             </p>
           ) : null}
         </div>
-        <Button onClick={openCreate} size="sm" className="gap-1.5">
-          <Plus className="h-3.5 w-3.5" />
-          Add day
-        </Button>
+        {canWrite ? (
+          <Button onClick={openCreate} size="sm" className="gap-1.5">
+            <Plus className="h-3.5 w-3.5" />
+            Add day
+          </Button>
+        ) : null}
       </div>
 
       <CalculatedMetricsBlock
@@ -241,7 +245,7 @@ export default function CampaignDailyPage() {
           metrics={summary.campaign.daily_metrics}
           activeKpis={activeKpis}
           currency={currency}
-          onEdit={openEdit}
+          onEdit={canWrite ? openEdit : undefined}
           calculatedRows={calculatedRows}
         />
       </section>

@@ -13,7 +13,7 @@ export async function GET(request: Request) {
       month: searchParams.get("month") ?? undefined,
       search: searchParams.get("search") ?? undefined,
       currency: searchParams.get("currency") ?? undefined,
-    });
+    }, user.role);
     return jsonOk(data);
   } catch (e) {
     if (e instanceof AuthError) return jsonError(e.message, e.status);

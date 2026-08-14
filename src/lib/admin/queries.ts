@@ -2,8 +2,9 @@ import "server-only";
 
 import { differenceInCalendarDays, subDays } from "date-fns";
 import { prisma } from "@/lib/db/prisma-client";
-import { isUserActive, splitDisplayName } from "@/lib/auth/roles";
+import { isAssignableRole, isUserActive, splitDisplayName } from "@/lib/auth/roles";
 import { setUserReportAccess } from "@/lib/auth/report-access";
+import type { UserRole } from "@prisma/client";
 
 function fillProgress(start: Date, end: Date, filledDays: number): number {
   const total = Math.max(1, differenceInCalendarDays(end, start) + 1);
@@ -176,9 +177,9 @@ export async function listAdminReports() {
 export async function getAccessMatrix() {
   const [users, reports, accesses] = await Promise.all([
     prisma.user.findMany({
-      where: { role: "USER" },
+      where: { role: { not: "ADMIN" } },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, email: true },
+      select: { id: true, name: true, email: true, role: true },
     }),
     prisma.campaign.findMany({
       where: { deletedAt: null },
@@ -201,6 +202,7 @@ export async function getAccessMatrix() {
         firstName,
         lastName,
         email: u.email,
+        role: u.role,
         reportIds: reports
           .filter((r) => accessSet.has(`${u.id}:${r.id}`))
           .map((r) => r.id),
@@ -213,6 +215,9 @@ export async function getAccessMatrix() {
 export async function updateUserAccess(userId: string, reportIds: string[]) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw new Error("Пользователь не найден");
+  if (user.role === "ADMIN") {
+    throw new Error("Назначение доступов администратору не требуется");
+  }
   if (reportIds.length > 0) {
     const found = await prisma.campaign.count({
       where: { id: { in: reportIds } },
@@ -222,6 +227,27 @@ export async function updateUserAccess(userId: string, reportIds: string[]) {
     }
   }
   await setUserReportAccess(userId, reportIds);
+  return { ok: true };
+}
+
+export async function updateUserRole(userId: string, role: string) {
+  if (!isAssignableRole(role)) {
+    throw new Error("Некорректная роль");
+  }
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new Error("Пользователь не найден");
+
+  if (user.role === "ADMIN" && role !== "ADMIN") {
+    const admins = await prisma.user.count({ where: { role: "ADMIN" } });
+    if (admins <= 1) {
+      throw new Error("Нельзя снять роль у единственного администратора");
+    }
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { role: role as UserRole },
+  });
   return { ok: true };
 }
 

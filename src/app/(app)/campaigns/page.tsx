@@ -9,10 +9,12 @@ import { CampaignTable } from "@/components/CampaignTable";
 import { FilterBar, type FilterState } from "@/components/FilterBar";
 import { cn } from "@/lib/utils";
 import type { CampaignSummary, Client, Platform } from "@/lib/types";
+import { useCanWrite } from "@/components/auth/CurrentUserProvider";
 
 function CampaignsContent() {
   const searchParams = useSearchParams();
   const initialClientId = searchParams.get("clientId") ?? "";
+  const canWrite = useCanWrite();
 
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -69,10 +71,12 @@ function CampaignsContent() {
             Полный список кампаний и Plan vs Fact
           </p>
         </div>
-        <Link href="/campaigns/new" className={cn(buttonVariants({ size: "sm" }), "gap-1.5")}>
-          <Plus className="h-3.5 w-3.5" />
-          Создать кампанию
-        </Link>
+        {canWrite ? (
+          <Link href="/campaigns/new" className={cn(buttonVariants({ size: "sm" }), "gap-1.5")}>
+            <Plus className="h-3.5 w-3.5" />
+            Создать кампанию
+          </Link>
+        ) : null}
       </div>
       <FilterBar clients={clients} platforms={platforms} value={filters} onChange={setFilters} />
       <CampaignTable campaigns={campaigns} compact />

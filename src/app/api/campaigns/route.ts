@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { jsonError, jsonOk, readJson } from "@/lib/api";
 import { getDashboardData } from "@/lib/dashboard";
-import { AuthError, requireSessionUser } from "@/lib/auth/current-user";
+import { AuthError, requireSessionUser, requireWriteAccess } from "@/lib/auth/current-user";
 import type { CurrencyCode, KpiType } from "@/lib/types";
 
 export async function GET(request: Request) {
@@ -15,7 +15,7 @@ export async function GET(request: Request) {
       month: searchParams.get("month") ?? undefined,
       search: searchParams.get("search") ?? undefined,
       currency: searchParams.get("currency") ?? undefined,
-    });
+    }, user.role);
     return jsonOk(data.campaigns);
   } catch (e) {
     if (e instanceof AuthError) return jsonError(e.message, e.status);
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const user = await requireSessionUser();
+    const user = await requireWriteAccess();
     const body = await readJson<{
       client_id: string;
       platform_id: string;

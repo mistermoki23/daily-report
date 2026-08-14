@@ -1,12 +1,49 @@
-export const USER_ROLES = ["USER", "ADMIN"] as const;
+export const USER_ROLES = ["USER", "MANAGER", "READER", "ADMIN"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
+
+/** Roles an admin may assign. Legacy USER is not offered in the UI. */
+export const ASSIGNABLE_ROLES = ["ADMIN", "MANAGER", "READER"] as const;
+export type AssignableRole = (typeof ASSIGNABLE_ROLES)[number];
+
+export const ROLE_LABELS: Record<UserRole, string> = {
+  ADMIN: "Админ",
+  MANAGER: "Менеджер",
+  READER: "Читатель",
+  USER: "Менеджер",
+};
 
 export function isAdminRole(role: string | null | undefined): boolean {
   return role === "ADMIN";
 }
 
-export function normalizeUserRole(role: string | null | undefined): UserRole {
-  return role === "ADMIN" ? "ADMIN" : "USER";
+export function isReaderRole(role: string | null | undefined): boolean {
+  return normalizeUserRole(role) === "READER";
+}
+
+export function isManagerRole(role: string | null | undefined): boolean {
+  return normalizeUserRole(role) === "MANAGER";
+}
+
+export function isAssignableRole(role: string): role is AssignableRole {
+  return (ASSIGNABLE_ROLES as readonly string[]).includes(role);
+}
+
+/**
+ * Canonical role for permission checks.
+ * Legacy USER is treated as MANAGER (same write access, no admin).
+ */
+export function normalizeUserRole(role: string | null | undefined): AssignableRole {
+  if (role === "ADMIN") return "ADMIN";
+  if (role === "READER") return "READER";
+  if (role === "MANAGER" || role === "USER") return "MANAGER";
+  return "MANAGER";
+}
+
+export function displayRoleLabel(role: string | null | undefined): string {
+  if (role === "ADMIN") return ROLE_LABELS.ADMIN;
+  if (role === "READER") return ROLE_LABELS.READER;
+  if (role === "MANAGER" || role === "USER") return ROLE_LABELS.MANAGER;
+  return ROLE_LABELS.MANAGER;
 }
 
 export function splitDisplayName(name: string): {

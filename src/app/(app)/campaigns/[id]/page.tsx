@@ -38,6 +38,7 @@ import {
   type ChartPoint,
   type KpiType,
 } from "@/lib/types";
+import { useCanDelete, useCanWrite } from "@/components/auth/CurrentUserProvider";
 
 type TabId = KpiType | CalculatedMetricType;
 
@@ -54,6 +55,8 @@ export default function CampaignDetailPage() {
   const [editCampaignOpen, setEditCampaignOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const canWrite = useCanWrite();
+  const canDelete = useCanDelete();
 
   useEffect(() => {
     async function load() {
@@ -207,31 +210,37 @@ export default function CampaignDetailPage() {
           ) : null}
         </div>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setEditCampaignOpen(true)}
-          >
-            Редактировать кампанию
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setEditPlanOpen(true)}
-          >
-            Редактировать план
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="text-rose-700 hover:bg-rose-50 hover:text-rose-800"
-            onClick={() => setDeleteOpen(true)}
-          >
-            Удалить
-          </Button>
+          {canWrite ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setEditCampaignOpen(true)}
+              >
+                Редактировать кампанию
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setEditPlanOpen(true)}
+              >
+                Редактировать план
+              </Button>
+            </>
+          ) : null}
+          {canDelete ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+              onClick={() => setDeleteOpen(true)}
+            >
+              Удалить
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="outline"
@@ -407,7 +416,7 @@ export default function CampaignDetailPage() {
             href={`/campaigns/${campaign.id}/daily`}
             className="text-xs text-slate-600 underline hover:text-slate-900"
           >
-            Редактировать факты →
+            {canWrite ? "Редактировать факты →" : "Открыть Daily Data →"}
           </Link>
         </div>
         <DailyMetricsTable
