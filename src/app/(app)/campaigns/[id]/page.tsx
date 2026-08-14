@@ -13,6 +13,7 @@ import { DailyMetricsTable, DailyPerformanceTable } from "@/components/DailyMetr
 import { EditPlanDialog } from "@/components/EditPlanDialog";
 import { EditCampaignDialog } from "@/components/EditCampaignDialog";
 import { DeleteCampaignDialog } from "@/components/DeleteCampaignDialog";
+import { ExportCampaignDialog } from "@/components/ExportCampaignDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   availableCalculatedMetrics,
@@ -52,6 +53,7 @@ export default function CampaignDetailPage() {
   const [editPlanOpen, setEditPlanOpen] = useState(false);
   const [editCampaignOpen, setEditCampaignOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -230,6 +232,14 @@ export default function CampaignDetailPage() {
           >
             Удалить
           </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setExportOpen(true)}
+          >
+            Экспорт в Excel
+          </Button>
           <Link
             href={`/campaigns/${campaign.id}/daily`}
             className={cn(buttonVariants({ size: "sm" }))}
@@ -264,6 +274,12 @@ export default function CampaignDetailPage() {
         onOpenChange={setDeleteOpen}
         campaignId={campaign.id}
         campaignName={campaign.name}
+      />
+
+      <ExportCampaignDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        summary={summary}
       />
 
       {/* 2. KPI Summary */}

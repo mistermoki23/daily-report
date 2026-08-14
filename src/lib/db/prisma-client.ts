@@ -25,8 +25,8 @@ const globalForPrisma = globalThis as unknown as {
   prismaSchemaHash?: string;
 };
 
-/** Bust cached client after schema changes (e.g. User.role String → UserRole). */
-const SCHEMA_HASH = "campaign-soft-delete-v1";
+/** Bust cached client after schema changes (e.g. User.role String → UserRole, soft-delete). */
+const SCHEMA_HASH = "campaign-soft-delete-v2-role-enum";
 
 function createPrismaClient() {
   return new PrismaClient({
