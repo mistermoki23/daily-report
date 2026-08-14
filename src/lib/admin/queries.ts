@@ -2,9 +2,13 @@ import "server-only";
 
 import { differenceInCalendarDays, subDays } from "date-fns";
 import { prisma } from "@/lib/db/prisma-client";
-import { isAssignableRole, isUserActive, splitDisplayName } from "@/lib/auth/roles";
+import {
+  isAssignableRole,
+  isUserActive,
+  splitDisplayName,
+} from "@/lib/auth/roles";
 import { setUserReportAccess } from "@/lib/auth/report-access";
-import type { UserRole } from "@prisma/client";
+import { UserRole as PrismaUserRole } from "@prisma/client";
 
 function fillProgress(start: Date, end: Date, filledDays: number): number {
   const total = Math.max(1, differenceInCalendarDays(end, start) + 1);
@@ -230,10 +234,18 @@ export async function updateUserAccess(userId: string, reportIds: string[]) {
   return { ok: true };
 }
 
+function toPrismaAssignableRole(role: string): PrismaUserRole {
+  if (role === "ADMIN") return PrismaUserRole.ADMIN;
+  if (role === "MANAGER") return PrismaUserRole.MANAGER;
+  if (role === "READER") return PrismaUserRole.READER;
+  throw new Error("Некорректная роль. Допустимы: ADMIN, MANAGER, READER");
+}
+
 export async function updateUserRole(userId: string, role: string) {
   if (!isAssignableRole(role)) {
-    throw new Error("Некорректная роль");
+    throw new Error("Некорректная роль. Допустимы: ADMIN, MANAGER, READER");
   }
+  const prismaRole = toPrismaAssignableRole(role);
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw new Error("Пользователь не найден");
 
@@ -246,7 +258,7 @@ export async function updateUserRole(userId: string, role: string) {
 
   await prisma.user.update({
     where: { id: userId },
-    data: { role: role as UserRole },
+    data: { role: prismaRole },
   });
   return { ok: true };
 }
