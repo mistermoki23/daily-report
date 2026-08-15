@@ -127,7 +127,7 @@ export default function ClientsPage() {
               <TableRow
                 key={c.id}
                 className="cursor-pointer text-sm hover:bg-slate-50"
-                onClick={() => router.push(`/campaigns?clientId=${c.id}`)}
+                onClick={() => router.push(`/clients/${c.id}`)}
               >
                 <TableCell className="font-medium">{c.name}</TableCell>
                 <TableCell className="text-right tabular-nums">

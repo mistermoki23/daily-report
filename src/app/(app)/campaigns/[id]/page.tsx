@@ -186,6 +186,12 @@ export default function CampaignDetailPage() {
               Client: <span className="text-slate-800">{campaign.client.name}</span>
             </span>
             <span>
+              Brand:{" "}
+              <span className="text-slate-800">
+                {campaign.brand?.name ?? "Без бренда"}
+              </span>
+            </span>
+            <span>
               Platform: <span className="text-slate-800">{campaign.platform.name}</span>
             </span>
             <span>

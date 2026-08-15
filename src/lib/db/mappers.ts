@@ -1,5 +1,6 @@
 import type { CampaignStatus } from "@/lib/config/pacing";
 import type {
+  Brand,
   Campaign,
   CampaignKpi,
   CampaignWithRelations,
@@ -11,6 +12,7 @@ import type {
   User,
 } from "@/lib/types";
 import type {
+  Brand as PrismaBrand,
   Campaign as PrismaCampaign,
   CampaignPlan,
   Client as PrismaClientModel,
@@ -21,6 +23,7 @@ import type {
 
 type CampaignFull = PrismaCampaign & {
   client: PrismaClientModel;
+  brand?: PrismaBrand | null;
   platform: PrismaPlatform;
   plan: CampaignPlan | null;
   dailyData: DailyData[];
@@ -54,6 +57,15 @@ export function mapClient(row: PrismaClientModel): Client {
   };
 }
 
+export function mapBrand(row: PrismaBrand): Brand {
+  return {
+    id: row.id,
+    name: row.name,
+    client_id: row.clientId,
+    created_at: row.createdAt.toISOString(),
+  };
+}
+
 export function mapPlatform(row: PrismaPlatform): Platform {
   return {
     id: row.id,
@@ -67,6 +79,7 @@ export function mapCampaign(row: PrismaCampaign): Campaign {
     id: row.id,
     user_id: row.userId,
     client_id: row.clientId,
+    brand_id: row.brandId,
     platform_id: row.platformId,
     name: row.name,
     start_date: dateToString(row.startDate),
@@ -122,6 +135,7 @@ export function mapCampaignWithRelations(row: CampaignFull): CampaignWithRelatio
   return {
     ...campaign,
     client: mapClient(row.client),
+    brand: row.brand ? mapBrand(row.brand) : row.brand === null ? null : undefined,
     platform: mapPlatform(row.platform),
     kpis: planToKpis(row.plan, row.id),
     daily_metrics: [...row.dailyData]

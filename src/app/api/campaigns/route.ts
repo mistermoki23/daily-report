@@ -10,6 +10,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const data = await getDashboardData(user.id, {
       clientId: searchParams.get("clientId") ?? undefined,
+      brandId: searchParams.get("brandId") ?? undefined,
       platformId: searchParams.get("platformId") ?? undefined,
       status: searchParams.get("status") ?? undefined,
       month: searchParams.get("month") ?? undefined,
@@ -29,6 +30,7 @@ export async function POST(request: Request) {
     const body = await readJson<{
       client_id: string;
       platform_id: string;
+      brand_id?: string | null;
       name: string;
       start_date: string;
       end_date: string;

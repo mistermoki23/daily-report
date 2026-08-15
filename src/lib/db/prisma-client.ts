@@ -25,8 +25,8 @@ const globalForPrisma = globalThis as unknown as {
   prismaSchemaHash?: string;
 };
 
-/** Bust cached client after schema changes (e.g. User.role String → UserRole, soft-delete). */
-const SCHEMA_HASH = "user-role-reader-v3";
+/** Bust cached client after schema changes (Brand model, soft-delete, roles). */
+const SCHEMA_HASH = "brands-v3";
 
 function createPrismaClient() {
   return new PrismaClient({
@@ -37,12 +37,39 @@ function createPrismaClient() {
   });
 }
 
-export const prisma =
-  globalForPrisma.prisma && globalForPrisma.prismaSchemaHash === SCHEMA_HASH
-    ? globalForPrisma.prisma
-    : createPrismaClient();
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
-  globalForPrisma.prismaSchemaHash = SCHEMA_HASH;
+function hasBrandDelegate(client: PrismaClient): boolean {
+  return typeof (client as { brand?: { findMany?: unknown } }).brand?.findMany ===
+    "function";
 }
+
+function resolvePrismaClient(): PrismaClient {
+  const cached = globalForPrisma.prisma;
+  if (
+    cached &&
+    globalForPrisma.prismaSchemaHash === SCHEMA_HASH &&
+    hasBrandDelegate(cached)
+  ) {
+    return cached;
+  }
+
+  // Drop stale client from long-lived `next dev` started before Brand existed.
+  if (cached) {
+    void cached.$disconnect().catch(() => undefined);
+  }
+
+  const created = createPrismaClient();
+  if (!hasBrandDelegate(created)) {
+    throw new Error(
+      "Prisma Client без модели Brand. Выполните `npx prisma generate` и перезапустите сервер."
+    );
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    globalForPrisma.prisma = created;
+    globalForPrisma.prismaSchemaHash = SCHEMA_HASH;
+  }
+
+  return created;
+}
+
+export const prisma = resolvePrismaClient();

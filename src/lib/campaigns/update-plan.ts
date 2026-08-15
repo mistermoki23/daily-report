@@ -20,6 +20,7 @@ export { EDITABLE_PLAN_KPIS, type EditablePlanKpi, canAccessCampaign };
 
 const campaignInclude = {
   client: true,
+  brand: true,
   platform: true,
   plan: true,
   dailyData: { orderBy: { date: "asc" as const } },

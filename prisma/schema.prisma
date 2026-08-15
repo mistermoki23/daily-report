@@ -79,9 +79,25 @@ model Client {
   name      String     @unique
   createdAt DateTime   @default(now()) @map("created_at")
   updatedAt DateTime   @updatedAt @map("updated_at")
+  brands    Brand[]
   campaigns Campaign[]
 
   @@map("clients")
+}
+
+model Brand {
+  id        String     @id @default(uuid()) @db.Uuid
+  name      String
+  clientId  String     @map("client_id") @db.Uuid
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  client    Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  campaigns Campaign[]
+
+  @@unique([clientId, name])
+  @@index([clientId])
+  @@map("brands")
 }
 
 model Platform {
@@ -99,6 +115,7 @@ model Campaign {
   userId     String         @map("user_id") @db.Uuid
   name       String
   clientId   String         @map("client_id") @db.Uuid
+  brandId    String?        @map("brand_id") @db.Uuid
   platformId String         @map("platform_id") @db.Uuid
   currency   CurrencyCode   @default(RUB)
   startDate  DateTime       @map("start_date") @db.Date
@@ -111,6 +128,7 @@ model Campaign {
 
   user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   client      Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  brand       Brand?              @relation(fields: [brandId], references: [id], onDelete: SetNull)
   platform    Platform            @relation(fields: [platformId], references: [id], onDelete: Restrict)
   plan        CampaignPlan?
   dailyData   DailyData[]
@@ -121,6 +139,7 @@ model Campaign {
 
   @@index([userId])
   @@index([clientId])
+  @@index([brandId])
   @@index([platformId])
   @@index([startDate, endDate])
   @@index([deletedAt])

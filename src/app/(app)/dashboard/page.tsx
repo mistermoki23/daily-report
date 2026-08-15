@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/calculations";
 import { useCanWrite } from "@/components/auth/CurrentUserProvider";
 import type {
+  Brand,
   CampaignSummary,
   Client,
   DailyUpdateItem,
@@ -31,6 +32,16 @@ import type {
 
 type ViewMode = "all" | "client" | "platform";
 
+const EMPTY_FILTERS: FilterState = {
+  clientId: "",
+  brandId: "",
+  platformId: "",
+  month: "",
+  status: "",
+  search: "",
+  currency: "",
+};
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
@@ -40,22 +51,18 @@ export default function DashboardPage() {
   }>({ count: 0, items: [] });
   const [performance, setPerformance] = useState<PerformanceSummary | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [view, setView] = useState<ViewMode>("all");
-  const [filters, setFilters] = useState<FilterState>({
-    clientId: "",
-    platformId: "",
-    month: "",
-    status: "",
-    search: "",
-    currency: "",
-  });
+  const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const canWrite = useCanWrite();
 
   const query = useMemo(() => {
     const params = new URLSearchParams();
     if (filters.clientId) params.set("clientId", filters.clientId);
+    if (filters.brandId) params.set("brandId", filters.brandId);
     if (filters.platformId) params.set("platformId", filters.platformId);
     if (filters.month) params.set("month", filters.month);
     if (filters.status) params.set("status", filters.status);
@@ -65,9 +72,23 @@ export default function DashboardPage() {
   }, [filters]);
 
   useEffect(() => {
+    async function loadBrands() {
+      if (!filters.clientId) {
+        setBrands([]);
+        return;
+      }
+      const res = await fetch(`/api/brands?clientId=${filters.clientId}`);
+      const data = await res.json();
+      setBrands(Array.isArray(data) ? data : []);
+    }
+    loadBrands();
+  }, [filters.clientId]);
+
+  useEffect(() => {
     let cancelled = false;
     async function load() {
       setLoading(true);
+      setLoadError("");
       try {
         const [dashRes, clientsRes, platformsRes] = await Promise.all([
           fetch(`/api/dashboard?${query}`),
@@ -79,22 +100,36 @@ export default function DashboardPage() {
         const platformsData = await platformsRes.json();
         if (cancelled) return;
 
-        // /api/dashboard returns { stats, campaigns, dailyUpdate, performance }
-        // On auth/DB errors it returns { error } without campaigns.
-        const nextCampaigns = Array.isArray(dash?.campaigns) ? dash.campaigns : [];
-        setCampaigns(nextCampaigns);
-        setStats(dash?.stats ?? null);
-        setDailyUpdate(
-          dash?.dailyUpdate &&
-            typeof dash.dailyUpdate === "object" &&
-            Array.isArray(dash.dailyUpdate.items)
-            ? {
-                count: Number(dash.dailyUpdate.count) || 0,
-                items: dash.dailyUpdate.items,
-              }
-            : { count: 0, items: [] }
-        );
-        setPerformance(dash?.performance ?? null);
+        if (!dashRes.ok) {
+          setCampaigns([]);
+          setStats(null);
+          setDailyUpdate({ count: 0, items: [] });
+          setPerformance(null);
+          setLoadError(
+            typeof dash?.error === "string"
+              ? dash.error
+              : "Не удалось загрузить Dashboard"
+          );
+        } else {
+          // Show exactly what API returned — no extra frontend brand/status cuts.
+          const nextCampaigns = Array.isArray(dash?.campaigns)
+            ? dash.campaigns
+            : [];
+          setCampaigns(nextCampaigns);
+          setStats(dash?.stats ?? null);
+          setDailyUpdate(
+            dash?.dailyUpdate &&
+              typeof dash.dailyUpdate === "object" &&
+              Array.isArray(dash.dailyUpdate.items)
+              ? {
+                  count: Number(dash.dailyUpdate.count) || 0,
+                  items: dash.dailyUpdate.items,
+                }
+              : { count: 0, items: [] }
+          );
+          setPerformance(dash?.performance ?? null);
+        }
+
         setClients(Array.isArray(clientsData) ? clientsData : []);
         setPlatforms(Array.isArray(platformsData) ? platformsData : []);
       } finally {
@@ -108,21 +143,21 @@ export default function DashboardPage() {
   }, [query]);
 
   const todayLabel = format(new Date(), "d MMMM yyyy", { locale: ru });
-  const activeCampaigns = (campaigns ?? []).filter(
-    (c) => c.status !== "completed"
-  );
+
+  // Display all campaigns from API (including brandId = null → "Без бренда").
+  const visibleCampaigns = campaigns;
 
   const grouped = useMemo(() => {
     if (view === "all") return null;
     const map = new Map<string, CampaignSummary[]>();
-    for (const c of activeCampaigns) {
+    for (const c of visibleCampaigns) {
       const key =
         view === "client" ? c.campaign.client.name : c.campaign.platform.name;
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(c);
     }
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0], "ru"));
-  }, [activeCampaigns, view]);
+  }, [visibleCampaigns, view]);
 
   return (
     <div className="space-y-4">
@@ -203,26 +238,40 @@ export default function DashboardPage() {
             ))}
           </div>
         </div>
-        <FilterBar clients={clients} platforms={platforms} value={filters} onChange={setFilters} />
-        {loading ? (
+        <FilterBar
+          clients={clients}
+          brands={brands}
+          platforms={platforms}
+          value={filters}
+          onChange={setFilters}
+        />
+        {loadError ? (
+          <div className="rounded-md border border-rose-200 bg-rose-50 py-8 text-center text-sm text-rose-700">
+            {loadError}
+          </div>
+        ) : loading ? (
           <div className="rounded-md border border-slate-200 bg-white py-12 text-center text-sm text-slate-500">
             Загрузка...
           </div>
         ) : view === "all" ? (
-          <CampaignTable campaigns={activeCampaigns} compact />
+          <CampaignTable campaigns={visibleCampaigns} compact />
         ) : (
           <div className="space-y-3">
-            {grouped?.map(([group, rows]) => (
-              <div key={group} className="space-y-1.5">
-                <div className="flex items-baseline gap-2">
-                  <h3 className="text-sm font-semibold text-slate-900">{group}</h3>
-                  <span className="text-xs text-slate-500">
-                    {rows.length} {rows.length === 1 ? "campaign" : "campaigns"}
-                  </span>
+            {visibleCampaigns.length === 0 ? (
+              <CampaignTable campaigns={[]} compact />
+            ) : (
+              grouped?.map(([group, rows]) => (
+                <div key={group} className="space-y-1.5">
+                  <div className="flex items-baseline gap-2">
+                    <h3 className="text-sm font-semibold text-slate-900">{group}</h3>
+                    <span className="text-xs text-slate-500">
+                      {rows.length} {rows.length === 1 ? "campaign" : "campaigns"}
+                    </span>
+                  </div>
+                  <CampaignTable campaigns={rows} compact />
                 </div>
-                <CampaignTable campaigns={rows} compact />
-              </div>
-            ))}
+              ))
+            )}
           </div>
         )}
       </section>

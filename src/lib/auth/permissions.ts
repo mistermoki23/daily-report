@@ -54,6 +54,11 @@ export function canEdit(role?: string | null): boolean {
   return getPermissions(role).canEdit;
 }
 
+/** ADMIN / MANAGER — create, rename, delete brands and assign brand on campaigns */
+export function canManageBrands(role?: string | null): boolean {
+  return canCreate(role) || canEdit(role);
+}
+
 export function canDelete(role?: string | null): boolean {
   return getPermissions(role).canDelete;
 }

@@ -100,6 +100,13 @@ export interface Client {
   created_at: string;
 }
 
+export interface Brand {
+  id: string;
+  name: string;
+  client_id: string;
+  created_at: string;
+}
+
 export interface Platform {
   id: string;
   name: string;
@@ -110,6 +117,7 @@ export interface Campaign {
   id: string;
   user_id: string;
   client_id: string;
+  brand_id?: string | null;
   platform_id: string;
   name: string;
   start_date: string;
@@ -223,6 +231,7 @@ export interface ChartPoint {
 
 export interface CampaignWithRelations extends Campaign {
   client: Client;
+  brand?: Brand | null;
   platform: Platform;
   kpis: CampaignKpi[];
   daily_metrics: DailyMetric[];

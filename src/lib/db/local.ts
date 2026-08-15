@@ -225,6 +225,7 @@ export const localDb = {
     user_id: string;
     client_id: string;
     platform_id: string;
+    brand_id?: string | null;
     name: string;
     start_date: string;
     end_date: string;
@@ -262,6 +263,7 @@ export const localDb = {
       id: crypto.randomUUID(),
       user_id: input.user_id,
       client_id: input.client_id,
+      brand_id: input.brand_id ?? null,
       platform_id: input.platform_id,
       name: input.name.trim(),
       start_date: input.start_date,

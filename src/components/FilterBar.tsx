@@ -8,13 +8,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Client, Platform } from "@/lib/types";
+import type { Brand, Client, Platform } from "@/lib/types";
 import { CURRENCIES } from "@/lib/types";
 import type { CampaignStatus } from "@/lib/config/pacing";
 import { STATUS_LABELS } from "@/lib/config/pacing";
+import {
+  ALL_BRANDS_LABEL,
+  BRAND_FILTER_NONE,
+  UNASSIGNED_BRAND_LABEL,
+} from "@/lib/brands/filter";
 
 export type FilterState = {
   clientId: string;
+  brandId: string;
   platformId: string;
   month: string;
   status: string;
@@ -24,17 +30,25 @@ export type FilterState = {
 
 export function FilterBar({
   clients,
+  brands = [],
   platforms,
   value,
   onChange,
   showCurrency = true,
+  showBrand = true,
 }: {
   clients: Client[];
+  brands?: Brand[];
   platforms: Platform[];
   value: FilterState;
   onChange: (next: FilterState) => void;
   showCurrency?: boolean;
+  showBrand?: boolean;
 }) {
+  const brandOptions = value.clientId
+    ? brands.filter((b) => b.client_id === value.clientId)
+    : brands;
+
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <Input
@@ -45,9 +59,10 @@ export function FilterBar({
       />
       <Select
         value={value.clientId || "__all__"}
-        onValueChange={(v) =>
-          onChange({ ...value, clientId: !v || v === "__all__" ? "" : v })
-        }
+        onValueChange={(v) => {
+          const clientId = !v || v === "__all__" ? "" : v;
+          onChange({ ...value, clientId, brandId: "" });
+        }}
       >
         <SelectTrigger className="h-8 w-[140px] border-slate-200 text-sm">
           <SelectValue>
@@ -65,6 +80,42 @@ export function FilterBar({
           ))}
         </SelectContent>
       </Select>
+      {showBrand ? (
+        <Select
+          value={value.brandId || "__all__"}
+          onValueChange={(v) =>
+            onChange({
+              ...value,
+              brandId: !v || v === "__all__" ? "" : v,
+            })
+          }
+          disabled={!value.clientId}
+        >
+          <SelectTrigger className="h-8 w-[140px] border-slate-200 text-sm">
+            <SelectValue>
+              {!value.clientId
+                ? "Бренд"
+                : value.brandId === BRAND_FILTER_NONE
+                  ? UNASSIGNED_BRAND_LABEL
+                  : value.brandId
+                    ? brandOptions.find((b) => b.id === value.brandId)?.name ??
+                      "Brand"
+                    : ALL_BRANDS_LABEL}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">{ALL_BRANDS_LABEL}</SelectItem>
+            <SelectItem value={BRAND_FILTER_NONE}>
+              {UNASSIGNED_BRAND_LABEL}
+            </SelectItem>
+            {brandOptions.map((b) => (
+              <SelectItem key={b.id} value={b.id}>
+                {b.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : null}
       <Select
         value={value.platformId || "__all__"}
         onValueChange={(v) =>

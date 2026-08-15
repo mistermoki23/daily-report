@@ -17,6 +17,7 @@ import {
   formatNumber,
   formatPercent,
 } from "@/lib/calculations";
+import { brandDisplayName } from "@/lib/brands/filter";
 import { KPI_LABELS, type CampaignSummary } from "@/lib/types";
 
 export function CampaignTable({
@@ -28,11 +29,12 @@ export function CampaignTable({
 }) {
   return (
     <div className="overflow-x-auto rounded-md border border-slate-200 bg-white">
-      <Table className="min-w-[1200px]">
+      <Table className="min-w-[1280px]">
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             <TableHead className="h-8 text-[11px] font-medium text-slate-500">Campaign</TableHead>
             <TableHead className="h-8 text-[11px] font-medium text-slate-500">Client</TableHead>
+            <TableHead className="h-8 text-[11px] font-medium text-slate-500">Brand</TableHead>
             <TableHead className="h-8 text-[11px] font-medium text-slate-500">Platform</TableHead>
             <TableHead className="h-8 text-[11px] font-medium text-slate-500">Period</TableHead>
             <TableHead className="h-8 text-[11px] font-medium text-slate-500">Days</TableHead>
@@ -48,7 +50,7 @@ export function CampaignTable({
         <TableBody>
           {campaigns.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={12} className="py-8 text-center text-sm text-slate-500">
+              <TableCell colSpan={13} className="py-8 text-center text-sm text-slate-500">
                 Кампании не найдены
               </TableCell>
             </TableRow>
@@ -83,6 +85,9 @@ export function CampaignTable({
                     ) : null}
                   </TableCell>
                   <TableCell className="py-2 text-slate-600">{row.campaign.client.name}</TableCell>
+                  <TableCell className="py-2 text-slate-600">
+                    {brandDisplayName(row.campaign.brand)}
+                  </TableCell>
                   <TableCell className="py-2 text-slate-600">{row.campaign.platform.name}</TableCell>
                   <TableCell className="py-2 tabular-nums text-slate-600">
                     {formatDisplayDate(row.campaign.start_date)}–{formatDisplayDate(row.campaign.end_date)}

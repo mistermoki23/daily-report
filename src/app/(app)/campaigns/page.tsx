@@ -8,19 +8,22 @@ import { buttonVariants } from "@/components/ui/button";
 import { CampaignTable } from "@/components/CampaignTable";
 import { FilterBar, type FilterState } from "@/components/FilterBar";
 import { cn } from "@/lib/utils";
-import type { CampaignSummary, Client, Platform } from "@/lib/types";
+import type { Brand, CampaignSummary, Client, Platform } from "@/lib/types";
 import { useCanWrite } from "@/components/auth/CurrentUserProvider";
 
 function CampaignsContent() {
   const searchParams = useSearchParams();
   const initialClientId = searchParams.get("clientId") ?? "";
+  const initialBrandId = searchParams.get("brandId") ?? "";
   const canWrite = useCanWrite();
 
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [filters, setFilters] = useState<FilterState>({
     clientId: initialClientId,
+    brandId: initialBrandId,
     platformId: "",
     month: "",
     status: "",
@@ -29,14 +32,44 @@ function CampaignsContent() {
   });
 
   useEffect(() => {
-    if (initialClientId) {
-      setFilters((prev) => ({ ...prev, clientId: initialClientId }));
+    setFilters((prev) => ({
+      ...prev,
+      clientId: initialClientId || prev.clientId,
+      brandId: initialBrandId || (initialClientId ? prev.brandId : ""),
+    }));
+  }, [initialClientId, initialBrandId]);
+
+  useEffect(() => {
+    async function loadMeta() {
+      const [clientsRes, platformsRes] = await Promise.all([
+        fetch("/api/clients"),
+        fetch("/api/platforms"),
+      ]);
+      const clientsData = await clientsRes.json();
+      const platformsData = await platformsRes.json();
+      setClients(Array.isArray(clientsData) ? clientsData : []);
+      setPlatforms(Array.isArray(platformsData) ? platformsData : []);
     }
-  }, [initialClientId]);
+    loadMeta();
+  }, []);
+
+  useEffect(() => {
+    async function loadBrands() {
+      if (!filters.clientId) {
+        setBrands([]);
+        return;
+      }
+      const res = await fetch(`/api/brands?clientId=${filters.clientId}`);
+      const data = await res.json();
+      setBrands(Array.isArray(data) ? data : []);
+    }
+    loadBrands();
+  }, [filters.clientId]);
 
   const query = useMemo(() => {
     const params = new URLSearchParams();
     if (filters.clientId) params.set("clientId", filters.clientId);
+    if (filters.brandId) params.set("brandId", filters.brandId);
     if (filters.platformId) params.set("platformId", filters.platformId);
     if (filters.month) params.set("month", filters.month);
     if (filters.status) params.set("status", filters.status);
@@ -47,17 +80,9 @@ function CampaignsContent() {
 
   useEffect(() => {
     async function load() {
-      const [dashRes, clientsRes, platformsRes] = await Promise.all([
-        fetch(`/api/dashboard?${query}`),
-        fetch("/api/clients"),
-        fetch("/api/platforms"),
-      ]);
+      const dashRes = await fetch(`/api/dashboard?${query}`);
       const dash = await dashRes.json();
-      const clientsData = await clientsRes.json();
-      const platformsData = await platformsRes.json();
       setCampaigns(Array.isArray(dash?.campaigns) ? dash.campaigns : []);
-      setClients(Array.isArray(clientsData) ? clientsData : []);
-      setPlatforms(Array.isArray(platformsData) ? platformsData : []);
     }
     load();
   }, [query]);
@@ -78,7 +103,13 @@ function CampaignsContent() {
           </Link>
         ) : null}
       </div>
-      <FilterBar clients={clients} platforms={platforms} value={filters} onChange={setFilters} />
+      <FilterBar
+        clients={clients}
+        brands={brands}
+        platforms={platforms}
+        value={filters}
+        onChange={setFilters}
+      />
       <CampaignTable campaigns={campaigns} compact />
     </div>
   );

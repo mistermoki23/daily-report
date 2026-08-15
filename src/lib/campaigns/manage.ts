@@ -24,6 +24,7 @@ import {
 
 const campaignInclude = {
   client: true,
+  brand: true,
   platform: true,
   plan: true,
   dailyData: { orderBy: { date: "asc" as const } },
@@ -84,6 +85,7 @@ export type CampaignUpdateInput = {
   name: string;
   client_id: string;
   platform_id: string;
+  brand_id?: string | null;
   start_date: string;
   end_date: string;
   currency: AppCurrency;
@@ -150,9 +152,36 @@ export async function updateCampaignFull(
 
   const campaign = await prisma.campaign.findFirst({
     where: { id: campaignId, deletedAt: null },
-    include: { plan: true, client: true, platform: true },
+    include: { plan: true, client: true, platform: true, brand: true },
   });
   if (!campaign) throw new Error("Кампания не найдена");
+
+  let nextBrandId: string | null =
+    input.brand_id !== undefined ? null : campaign.brandId;
+  let nextBrandName: string | null = campaign.brand?.name ?? null;
+
+  if (input.brand_id !== undefined) {
+    if (input.brand_id != null && input.brand_id !== "") {
+      const brand = await prisma.brand.findUnique({ where: { id: input.brand_id } });
+      if (!brand) throw new Error("Бренд не найден");
+      if (brand.clientId !== input.client_id) {
+        throw new Error("Бренд не принадлежит выбранному клиенту");
+      }
+      nextBrandId = brand.id;
+      nextBrandName = brand.name;
+    } else {
+      nextBrandId = null;
+      nextBrandName = null;
+    }
+  } else if (nextBrandId) {
+    const brand =
+      campaign.brand ??
+      (await prisma.brand.findUnique({ where: { id: nextBrandId } }));
+    if (!brand || brand.clientId !== input.client_id) {
+      throw new Error("Бренд не принадлежит выбранному клиенту");
+    }
+    nextBrandName = brand.name;
+  }
 
   const oldPlan = {
     impressions: decimalToNumber(campaign.plan?.impressions),
@@ -226,6 +255,19 @@ export async function updateCampaignFull(
       newValue: input.primary_kpi,
     });
   }
+  if (campaign.brandId !== nextBrandId) {
+    const oldBrandLabel = campaign.brand
+      ? `${campaign.brand.name} (${campaign.brandId})`
+      : campaign.brandId;
+    const newBrandLabel = nextBrandId
+      ? `${nextBrandName ?? nextBrandId} (${nextBrandId})`
+      : null;
+    metaChanges.push({
+      field: "brand_id",
+      oldValue: oldBrandLabel,
+      newValue: newBrandLabel,
+    });
+  }
 
   const planChanges: {
     field: string;
@@ -260,6 +302,7 @@ export async function updateCampaignFull(
       data: {
         name,
         clientId: input.client_id,
+        brandId: nextBrandId,
         platformId: input.platform_id,
         startDate: parseDateOnly(start),
         endDate: parseDateOnly(end),

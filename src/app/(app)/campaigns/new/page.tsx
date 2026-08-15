@@ -19,6 +19,7 @@ import {
   CURRENCIES,
   KPI_LABELS,
   KPI_TYPES,
+  type Brand,
   type Client,
   type CurrencyCode,
   type KpiType,
@@ -29,10 +30,12 @@ export default function NewCampaignPage() {
   const router = useRouter();
   const [clients, setClients] = useState<Client[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
   const [clientId, setClientId] = useState("");
+  const [brandId, setBrandId] = useState("");
   const [platformId, setPlatformId] = useState("");
   const [name, setName] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -70,6 +73,21 @@ export default function NewCampaignPage() {
     load();
   }, []);
 
+  useEffect(() => {
+    setBrandId("");
+    setBrands([]);
+    if (!clientId) return;
+    let cancelled = false;
+    async function loadBrands() {
+      const res = await fetch(`/api/brands?clientId=${clientId}`);
+      const data = await res.json();
+      if (!cancelled) setBrands(Array.isArray(data) ? data : []);
+    }
+    loadBrands();
+    return () => {
+      cancelled = true;
+    };
+  }, [clientId]);
   const selectedTypes = KPI_TYPES.filter((t) => activeKpis[t]);
 
   async function onSubmit(e: React.FormEvent) {
@@ -91,6 +109,7 @@ export default function NewCampaignPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           client_id: clientId,
+          brand_id: brandId || null,
           platform_id: platformId,
           name,
           start_date: startDate,
@@ -143,6 +162,43 @@ export default function NewCampaignPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Brand</Label>
+              <Select
+                value={brandId || "__none__"}
+                onValueChange={(v) =>
+                  setBrandId(!v || v === "__none__" ? "" : v)
+                }
+                disabled={!clientId}
+              >
+                <SelectTrigger className="w-full border-slate-200">
+                  <SelectValue>
+                    {brandId
+                      ? brands.find((b) => b.id === brandId)?.name ?? "Бренд"
+                      : "Без бренда"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Без бренда</SelectItem>
+                  {brands.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {clientId && brands.length === 0 ? (
+                <p className="text-[11px] text-slate-500">
+                  У клиента пока нет брендов.{" "}
+                  <Link
+                    href={`/clients/${clientId}`}
+                    className="underline hover:text-slate-800"
+                  >
+                    Добавить на странице клиента
+                  </Link>
+                </p>
+              ) : null}
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Platform</Label>

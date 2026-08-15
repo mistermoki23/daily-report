@@ -20,10 +20,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import Link from "next/link";
 import {
   CURRENCIES,
   KPI_LABELS,
   KPI_TYPES,
+  type Brand,
   type CampaignSummary,
   type Client,
   type CurrencyCode,
@@ -47,8 +49,10 @@ function EditCampaignForm({
   const c = summary.campaign;
   const [clients, setClients] = useState<Client[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
+  const [brands, setBrands] = useState<Brand[]>(() => (c.brand ? [c.brand] : []));
   const [name, setName] = useState(c.name);
   const [clientId, setClientId] = useState(c.client_id);
+  const [brandId, setBrandId] = useState(c.brand_id ?? "");
   const [platformId, setPlatformId] = useState(c.platform_id);
   const [startDate, setStartDate] = useState(dateInput(c.start_date));
   const [endDate, setEndDate] = useState(dateInput(c.end_date));
@@ -85,6 +89,22 @@ function EditCampaignForm({
     load();
   }, []);
 
+  useEffect(() => {
+    if (!clientId) {
+      setBrands([]);
+      return;
+    }
+    let cancelled = false;
+    async function loadBrands() {
+      const res = await fetch(`/api/brands?clientId=${clientId}`);
+      const data = await res.json();
+      if (!cancelled) setBrands(Array.isArray(data) ? data : []);
+    }
+    loadBrands();
+    return () => {
+      cancelled = true;
+    };
+  }, [clientId]);
   const selectedTypes = KPI_TYPES.filter((t) => activeKpis[t]);
 
   async function onSave() {
@@ -133,6 +153,7 @@ function EditCampaignForm({
         body: JSON.stringify({
           name: trimmed,
           client_id: clientId,
+          brand_id: brandId || null,
           platform_id: platformId,
           start_date: startDate,
           end_date: endDate,
@@ -166,7 +187,14 @@ function EditCampaignForm({
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Client</Label>
-            <Select value={clientId} onValueChange={(v) => setClientId(v ?? "")}>
+            <Select
+              value={clientId}
+              onValueChange={(v) => {
+                setClientId(v ?? "");
+                setBrandId("");
+                setBrands([]);
+              }}
+            >
               <SelectTrigger className="w-full border-slate-200">
                 <SelectValue placeholder="Клиент" />
               </SelectTrigger>
@@ -178,6 +206,44 @@ function EditCampaignForm({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Brand</Label>
+            <Select
+              value={brandId || "__none__"}
+              onValueChange={(v) =>
+                setBrandId(!v || v === "__none__" ? "" : v)
+              }
+              disabled={!clientId}
+            >
+              <SelectTrigger className="w-full border-slate-200">
+                <SelectValue>
+                  {brandId
+                    ? brands.find((b) => b.id === brandId)?.name ?? "Бренд"
+                    : "Без бренда"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Без бренда</SelectItem>
+                {brands.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>
+                    {b.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {clientId && brands.length === 0 ? (
+              <p className="text-[11px] text-slate-500">
+                У клиента пока нет брендов.{" "}
+                <Link
+                  href={`/clients/${clientId}`}
+                  className="underline hover:text-slate-800"
+                  onClick={() => onCancel()}
+                >
+                  Добавить на странице клиента
+                </Link>
+              </p>
+            ) : null}
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Platform</Label>

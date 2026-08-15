@@ -13,12 +13,14 @@ import type {
   DashboardStats,
   PerformanceSummary,
 } from "@/lib/types";
+import { matchesBrandFilter, normalizeBrandFilter } from "@/lib/brands/filter";
 import { db } from "@/lib/db";
 
 export async function getDashboardData(
   userId: string,
   filters?: {
     clientId?: string;
+    brandId?: string;
     platformId?: string;
     status?: string;
     month?: string;
@@ -32,6 +34,13 @@ export async function getDashboardData(
 
   if (filters?.clientId) {
     summaries = summaries.filter((s) => s.campaign.client_id === filters.clientId);
+  }
+  // Apply brand filter ONLY when user selected a concrete brand or "Без бренда".
+  // Empty / "all" → keep campaigns with brandId IS NULL.
+  if (filters?.brandId && normalizeBrandFilter(filters.brandId).kind !== "all") {
+    summaries = summaries.filter((s) =>
+      matchesBrandFilter(s.campaign.brand_id, filters.brandId)
+    );
   }
   if (filters?.platformId) {
     summaries = summaries.filter(

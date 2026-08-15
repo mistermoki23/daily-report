@@ -22,20 +22,71 @@ import type {
 
 const campaignInclude = {
   client: true,
+  brand: true,
   platform: true,
   plan: true,
   dailyData: { orderBy: { date: "asc" as const } },
 } satisfies Prisma.CampaignInclude;
+
+/** Fallback when a long-lived process still has a Prisma Client generated before Brand existed. */
+const campaignIncludeWithoutBrand = {
+  client: true,
+  platform: true,
+  plan: true,
+  dailyData: { orderBy: { date: "asc" as const } },
+} satisfies Prisma.CampaignInclude;
+
+function isUnknownBrandIncludeError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes("Unknown field `brand`") ||
+    message.includes('Unknown field "brand"')
+  );
+}
+
+async function findCampaignsWithOptionalBrand(
+  args: {
+    where: Prisma.CampaignWhereInput;
+    orderBy?: Prisma.CampaignOrderByWithRelationInput;
+  }
+) {
+  try {
+    return await prisma.campaign.findMany({
+      ...args,
+      include: campaignInclude,
+    });
+  } catch (error) {
+    if (!isUnknownBrandIncludeError(error)) throw error;
+    return await prisma.campaign.findMany({
+      ...args,
+      include: campaignIncludeWithoutBrand,
+    });
+  }
+}
+
+async function findCampaignWithOptionalBrand(
+  args: { where: Prisma.CampaignWhereInput }
+) {
+  try {
+    return await prisma.campaign.findFirst({
+      ...args,
+      include: campaignInclude,
+    });
+  } catch (error) {
+    if (!isUnknownBrandIncludeError(error)) throw error;
+    return await prisma.campaign.findFirst({
+      ...args,
+      include: campaignIncludeWithoutBrand,
+    });
+  }
+}
 
 function parseDateOnly(value: string): Date {
   return new Date(`${value.slice(0, 10)}T00:00:00.000Z`);
 }
 
 async function loadCampaignSummary(id: string): Promise<CampaignSummary | null> {
-  const row = await prisma.campaign.findUnique({
-    where: { id },
-    include: campaignInclude,
-  });
+  const row = await findCampaignWithOptionalBrand({ where: { id } });
   if (!row) return null;
   return buildCampaignSummary(mapCampaignWithRelations(row));
 }
@@ -182,14 +233,18 @@ export const prismaDb = {
   },
 
   async listCampaigns(userId: string, role?: string) {
-    const rows = await prisma.campaign.findMany({
-      where: seesAllCampaigns(role)
-        ? { deletedAt: null }
-        : { deletedAt: null, accesses: { some: { userId } } },
-      include: campaignInclude,
+    const where = seesAllCampaigns(role)
+      ? { deletedAt: null }
+      : { deletedAt: null, accesses: { some: { userId } } };
+
+    const rows = await findCampaignsWithOptionalBrand({
+      where,
       orderBy: { name: "asc" },
     });
-    return rows.map((row) => buildCampaignSummary(mapCampaignWithRelations(row)));
+
+    return rows.map((row) =>
+      buildCampaignSummary(mapCampaignWithRelations(row))
+    );
   },
 
   async getCampaign(id: string, userId: string, role?: string) {
@@ -197,9 +252,8 @@ export const prismaDb = {
       const hasAccess = await userHasReportAccess(userId, id);
       if (!hasAccess) return null;
     }
-    const row = await prisma.campaign.findFirst({
+    const row = await findCampaignWithOptionalBrand({
       where: { id, deletedAt: null },
-      include: campaignInclude,
     });
     if (!row) return null;
     await logActivity({ userId, action: "REPORT_OPENED", reportId: id });
@@ -210,6 +264,7 @@ export const prismaDb = {
     user_id: string;
     client_id: string;
     platform_id: string;
+    brand_id?: string | null;
     name: string;
     start_date: string;
     end_date: string;
@@ -230,6 +285,16 @@ export const prismaDb = {
     });
     if (!platform) throw new Error("Площадка не найдена");
 
+    let brandId: string | null = null;
+    if (input.brand_id != null && input.brand_id !== "") {
+      const brand = await prisma.brand.findUnique({ where: { id: input.brand_id } });
+      if (!brand) throw new Error("Бренд не найден");
+      if (brand.clientId !== input.client_id) {
+        throw new Error("Бренд не принадлежит выбранному клиенту");
+      }
+      brandId = brand.id;
+    }
+
     const activeKpis = input.kpis.filter((k) => k.planned_value > 0);
     if (activeKpis.length === 0) {
       throw new Error("Укажите хотя бы один плановый KPI");
@@ -247,6 +312,7 @@ export const prismaDb = {
         name: input.name.trim(),
         userId: input.user_id,
         clientId: input.client_id,
+        brandId,
         platformId: input.platform_id,
         currency: input.currency || "RUB",
         startDate: parseDateOnly(input.start_date),

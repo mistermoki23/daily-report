@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Megaphone,
+  BarChart3,
   Users,
   MonitorSmartphone,
   Settings,
@@ -24,6 +25,7 @@ import type { User } from "@/lib/types";
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone },
+  { href: "/brand-reports", label: "Brand Reports", icon: BarChart3 },
   { href: "/clients", label: "Clients", icon: Users },
   { href: "/platforms", label: "Platforms", icon: MonitorSmartphone },
   { href: "/daily-update", label: "Daily Update", icon: ClipboardList },

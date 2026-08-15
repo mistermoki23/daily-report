@@ -30,6 +30,7 @@ export async function PUT(request: Request, { params }: Params) {
       name?: string;
       client_id?: string;
       platform_id?: string;
+      brand_id?: string | null;
       start_date?: string;
       end_date?: string;
       currency?: CurrencyCode;
@@ -57,6 +58,7 @@ export async function PUT(request: Request, { params }: Params) {
       name: body.name,
       client_id: body.client_id,
       platform_id: body.platform_id,
+      brand_id: body.brand_id,
       start_date: body.start_date,
       end_date: body.end_date,
       currency: body.currency,
