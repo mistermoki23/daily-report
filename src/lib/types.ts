@@ -249,6 +249,11 @@ export interface CampaignSummary {
   daysLabel: string;
   missingDays: number;
   factByKpi: Partial<Record<KpiType, number>>;
+  /** Presence of confirming screenshots (optional; filled by list/dashboard). */
+  screenshotStatus?: {
+    launch: boolean;
+    reporting: boolean;
+  };
 }
 
 export interface DashboardStats {

@@ -70,6 +70,7 @@ model User {
   activities   ReportActivity[]
   planChanges  PlanChangeLog[]
   changeLogs   CampaignChangeLog[]
+  screenshots  CampaignScreenshot[]
 
   @@map("users")
 }
@@ -136,6 +137,7 @@ model Campaign {
   activities  ReportActivity[]
   planChanges PlanChangeLog[]
   changeLogs  CampaignChangeLog[]
+  screenshots CampaignScreenshot[]
 
   @@index([userId])
   @@index([clientId])
@@ -243,6 +245,11 @@ enum CampaignChangeAction {
   RESTORE
 }
 
+enum CampaignScreenshotType {
+  LAUNCH
+  REPORTING
+}
+
 /// General campaign audit log (meta fields + DELETE/RESTORE). Plan KPI edits also stay in plan_change_logs.
 model CampaignChangeLog {
   id         String                @id @default(uuid()) @db.Uuid
@@ -263,4 +270,28 @@ model CampaignChangeLog {
   @@index([action, createdAt])
   @@index([createdAt])
   @@map("campaign_change_logs")
+}
+
+/// Confirming screenshots for a campaign (launch / reporting placement).
+/// Image bytes live on disk; only URL + metadata are stored here.
+model CampaignScreenshot {
+  id           String                  @id @default(uuid()) @db.Uuid
+  campaignId   String                  @map("campaign_id") @db.Uuid
+  type         CampaignScreenshotType
+  url          String
+  storageKey   String                  @map("storage_key")
+  originalName String?                 @map("original_name")
+  mimeType     String                  @map("mime_type")
+  sizeBytes    Int                     @map("size_bytes")
+  uploadedBy   String                  @map("uploaded_by") @db.Uuid
+  createdAt    DateTime                @default(now()) @map("created_at")
+  updatedAt    DateTime                @updatedAt @map("updated_at")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  uploader User     @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
+
+  @@unique([campaignId, type])
+  @@index([campaignId])
+  @@index([uploadedBy])
+  @@map("campaign_screenshots")
 }

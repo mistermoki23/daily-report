@@ -14,6 +14,7 @@ import type {
   PerformanceSummary,
 } from "@/lib/types";
 import { matchesBrandFilter, normalizeBrandFilter } from "@/lib/brands/filter";
+import { attachScreenshotStatus } from "@/lib/campaigns/screenshots";
 import { db } from "@/lib/db";
 
 export async function getDashboardData(
@@ -31,6 +32,7 @@ export async function getDashboardData(
 ) {
   let summaries = (await db.listCampaigns(userId, role)) ?? [];
   if (!Array.isArray(summaries)) summaries = [];
+  summaries = await attachScreenshotStatus(summaries);
 
   if (filters?.clientId) {
     summaries = summaries.filter((s) => s.campaign.client_id === filters.clientId);

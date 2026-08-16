@@ -19,7 +19,9 @@ import { DailyUpdateCenter } from "@/components/DailyUpdateCenter";
 import { FilterBar, type FilterState } from "@/components/FilterBar";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/calculations";
-import { useCanWrite } from "@/components/auth/CurrentUserProvider";
+import { useCanWrite, useCurrentUser } from "@/components/auth/CurrentUserProvider";
+import { useCampaignTablePrefs } from "@/hooks/useCampaignTablePrefs";
+import { sortCampaignSummaries } from "@/lib/campaigns/table-columns";
 import type {
   Brand,
   CampaignSummary,
@@ -58,6 +60,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const canWrite = useCanWrite();
+  const user = useCurrentUser();
+  const { sort } = useCampaignTablePrefs(user?.id);
 
   const query = useMemo(() => {
     const params = new URLSearchParams();
@@ -145,7 +149,11 @@ export default function DashboardPage() {
   const todayLabel = format(new Date(), "d MMMM yyyy", { locale: ru });
 
   // Display all campaigns from API (including brandId = null → "Без бренда").
-  const visibleCampaigns = campaigns;
+  // Sort full filtered set before grouping / any future pagination.
+  const visibleCampaigns = useMemo(
+    () => sortCampaignSummaries(campaigns, sort),
+    [campaigns, sort]
+  );
 
   const grouped = useMemo(() => {
     if (view === "all") return null;

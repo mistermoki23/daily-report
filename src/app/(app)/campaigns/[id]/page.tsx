@@ -14,6 +14,7 @@ import { EditPlanDialog } from "@/components/EditPlanDialog";
 import { EditCampaignDialog } from "@/components/EditCampaignDialog";
 import { DeleteCampaignDialog } from "@/components/DeleteCampaignDialog";
 import { ExportCampaignDialog } from "@/components/ExportCampaignDialog";
+import { CampaignMaterialsSection } from "@/components/CampaignMaterialsSection";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   availableCalculatedMetrics,
@@ -326,6 +327,8 @@ export default function CampaignDetailPage() {
         comparisons={calculatedComparisons}
         currency={currency}
       />
+
+      <CampaignMaterialsSection campaignId={campaign.id} />
 
       {/* 4–5. Performance Chart + Daily Performance Table */}
       <section className="space-y-2">
