@@ -14,6 +14,7 @@
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
+    "prisma:generate": "prisma generate",
     "db:reset": "prisma migrate reset",
     "db:pg": "node scripts/pg-embedded.cjs",
     "admin:promote": "tsx scripts/promote-admin.ts"
@@ -24,6 +25,7 @@
   "dependencies": {
     "@base-ui/react": "^1.7.0",
     "@prisma/client": "^6.19.0",
+    "@supabase/supabase-js": "^2.112.3",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

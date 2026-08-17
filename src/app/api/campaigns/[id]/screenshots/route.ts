@@ -7,6 +7,9 @@ import {
   upsertCampaignScreenshot,
 } from "@/lib/campaigns/screenshots";
 
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, { params }: Params) {

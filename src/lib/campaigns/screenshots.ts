@@ -6,6 +6,7 @@ import { canEdit } from "@/lib/auth/permissions";
 import { canAccessCampaign } from "@/lib/campaigns/manage";
 import { prisma } from "@/lib/db/prisma-client";
 import {
+  checkCampaignScreenshotObject,
   deleteCampaignScreenshotFile,
   detectImageMime,
   isAllowedScreenshotMime,
@@ -96,7 +97,19 @@ export async function listCampaignScreenshots(
     where: { campaignId },
     orderBy: { type: "asc" },
   });
-  return rows.map(mapScreenshot);
+  const kept: CampaignScreenshotDto[] = [];
+  for (const row of rows) {
+    const check = await checkCampaignScreenshotObject(row.storageKey);
+    if (check === "exists") {
+      kept.push(mapScreenshot(row));
+      continue;
+    }
+    if (check === "missing") {
+      await prisma.campaignScreenshot.delete({ where: { id: row.id } }).catch(() => undefined);
+    }
+    // "unavailable": do not show as uploaded and do not delete metadata.
+  }
+  return kept;
 }
 
 export async function getCampaignScreenshotFile(
@@ -110,12 +123,17 @@ export async function getCampaignScreenshotFile(
     where: { campaignId_type: { campaignId, type } },
   });
   if (!row) throw new AuthError("Скриншот не найден", 404);
-  const buffer = await readCampaignScreenshotFile(row.storageKey);
-  return {
-    buffer,
-    mimeType: row.mimeType,
-    originalName: row.originalName,
-  };
+  try {
+    const buffer = await readCampaignScreenshotFile(row.storageKey);
+    return {
+      buffer,
+      mimeType: row.mimeType,
+      originalName: row.originalName,
+    };
+  } catch {
+    await prisma.campaignScreenshot.delete({ where: { id: row.id } }).catch(() => undefined);
+    throw new AuthError("Скриншот не найден", 404);
+  }
 }
 
 export async function upsertCampaignScreenshot(
@@ -218,13 +236,28 @@ export async function attachScreenshotStatus(
     const ids = summaries.map((s) => s.campaign.id);
     const rows = await prisma.campaignScreenshot.findMany({
       where: { campaignId: { in: ids } },
-      select: { campaignId: true, type: true },
+      select: { campaignId: true, type: true, storageKey: true, id: true },
     });
     const map = new Map<string, CampaignScreenshotStatus>();
     for (const id of ids) {
       map.set(id, { launch: false, reporting: false });
     }
-    for (const row of rows) {
+    const checked = await Promise.all(
+      rows.map(async (row) => ({
+        row,
+        check: await checkCampaignScreenshotObject(row.storageKey),
+      }))
+    );
+    const staleIds = checked
+      .filter((item) => item.check === "missing")
+      .map((item) => item.row.id);
+    if (staleIds.length > 0) {
+      await prisma.campaignScreenshot
+        .deleteMany({ where: { id: { in: staleIds } } })
+        .catch(() => undefined);
+    }
+    for (const { row, check } of checked) {
+      if (check !== "exists") continue;
       const status = map.get(row.campaignId);
       if (!status) continue;
       if (row.type === "LAUNCH") status.launch = true;
@@ -243,7 +276,9 @@ export async function attachScreenshotStatus(
     if (
       message.includes("campaign_screenshots") ||
       message.includes("CampaignScreenshot") ||
-      message.includes("Unknown arg")
+      message.includes("Unknown arg") ||
+      message.includes("SUPABASE") ||
+      message.includes("Storage")
     ) {
       console.warn("[screenshots] status attach skipped:", message);
       return summaries.map((s) => ({

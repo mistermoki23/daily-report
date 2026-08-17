@@ -65,9 +65,15 @@ function ScreenshotBlock({
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [imageBroken, setImageBroken] = useState(false);
+
+  useEffect(() => {
+    setImageBroken(false);
+  }, [screenshot?.id, screenshot?.updated_at]);
 
   async function upload(file: File) {
     setError("");
+    setImageBroken(false);
     setUploading(true);
     try {
       const form = new FormData();
@@ -107,9 +113,11 @@ function ScreenshotBlock({
     }
   }
 
-  const previewUrl = screenshot
-    ? cacheBust(screenshot.url, screenshot.updated_at)
-    : null;
+  const previewUrl =
+    screenshot && !imageBroken
+      ? cacheBust(screenshot.url, screenshot.updated_at)
+      : null;
+  const uploaded = Boolean(screenshot) && !imageBroken;
   const disabled = busy || uploading;
 
   return (
@@ -124,12 +132,12 @@ function ScreenshotBlock({
           </CardTitle>
           <span
             className={`rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
-              screenshot
+              uploaded
                 ? "bg-emerald-50 text-emerald-700"
                 : "bg-slate-100 text-slate-500"
             }`}
           >
-            {screenshot ? "Загружен" : "Не загружен"}
+            {uploaded ? "Загружен" : "Не загружен"}
           </span>
         </div>
       </CardHeader>
@@ -145,6 +153,7 @@ function ScreenshotBlock({
               src={previewUrl}
               alt={title}
               className="max-h-48 w-full object-contain"
+              onError={() => setImageBroken(true)}
             />
             <div className="border-t border-slate-100 px-2 py-1 text-[11px] text-slate-500">
               Нажмите, чтобы открыть крупно
@@ -177,11 +186,11 @@ function ScreenshotBlock({
             >
               {uploading
                 ? "Загрузка..."
-                : screenshot
+                : uploaded
                   ? "Заменить"
                   : "Загрузить"}
             </Button>
-            {screenshot ? (
+            {uploaded ? (
               <Button
                 type="button"
                 size="sm"

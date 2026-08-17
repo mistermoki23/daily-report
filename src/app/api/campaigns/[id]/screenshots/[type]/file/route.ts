@@ -2,6 +2,9 @@ import { AuthError, requireSessionUser } from "@/lib/auth/current-user";
 import { jsonError } from "@/lib/api";
 import { getCampaignScreenshotFile } from "@/lib/campaigns/screenshots";
 
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 type Params = { params: Promise<{ id: string; type: string }> };
 
 export async function GET(_request: Request, { params }: Params) {
